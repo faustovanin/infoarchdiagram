@@ -1,0 +1,2361 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InfoArch - Interactive Syntax-to-Tree IA Designer</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Material Symbols Outlined -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbars for clean code look */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .dark ::-webkit-scrollbar-thumb {
+      background: #475569;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    
+    /* Grid background pattern for SVG canvas */
+    .grid-bg-light {
+      background-image: radial-gradient(#e2e8f0 1.5px, transparent 1.5px);
+      background-size: 24px 24px;
+      background-color: #f8fafc;
+    }
+    .dark .grid-bg-dark {
+      background-image: radial-gradient(#334155 1.5px, transparent 1.5px);
+      background-size: 24px 24px;
+      background-color: #0f172a;
+    }
+    
+    /* CSS Transition for connections and hover states */
+    .node-transition {
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .connection-line {
+      transition: stroke-width 0.2s, opacity 0.2s, filter 0.2s;
+    }
+    .connection-line:hover {
+      stroke-width: 4px !important;
+      opacity: 1 !important;
+      filter: drop-shadow(0 0 4px currentColor);
+      cursor: pointer;
+    }
+
+    /* Standardized Material Symbols style override for crisp rendering */
+    .material-symbols-outlined {
+      font-size: 18px;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    
+    /* Custom slow rotation for empty state explore icon */
+    .animate-spin-slow {
+      animation: spin-slow 12s linear infinite;
+    }
+    @keyframes spin-slow {
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body class="h-full overflow-hidden bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-200">
+  <div id="app" class="h-full flex flex-col">
+    <!-- Header -->
+    <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-3 flex items-center justify-between shrink-0 shadow-sm z-10">
+      <div class="flex items-center space-x-3 overflow-hidden">
+        <div class="bg-brand-500 text-white p-2 rounded-lg flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined text-2xl" style="transform: rotate(90deg);">schema</span>
+        </div>
+        <div class="truncate">
+          <!-- Dynamically Updated Diagram Title via 'title:' tag -->
+          <h1 id="header-diagram-title" class="text-lg font-bold tracking-tight text-slate-900 dark:text-white truncate max-w-[240px] sm:max-w-md">Untitled Diagram</h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Interactive Syntax-to-Tree IA Diagrammer</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center space-x-2 shrink-0">
+        <!-- Load Local File Trigger -->
+        <button onclick="triggerFileInput()" class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center space-x-1.5 transition-colors animate-none" title="Load text diagram from your device">
+          <span class="material-symbols-outlined text-base">upload_file</span>
+          <span class="hidden sm:inline">Load File</span>
+        </button>
+        <input type="file" id="fileInput" accept=".txt,.ia,text/*" class="hidden" onchange="handleFileUpload(event)">
+
+        <!-- Save Local File Trigger -->
+        <button onclick="saveToFile()" class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center space-x-1.5 transition-colors" title="Save current text diagram to your device">
+          <span class="material-symbols-outlined text-base">save</span>
+          <span class="hidden sm:inline">Save File</span>
+        </button>
+
+        <!-- Layout Controls -->
+        <div class="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-lg border border-slate-200 dark:border-slate-600">
+          <button onclick="setOrientation('horizontal')" id="btn-orient-horizontal" class="px-2.5 py-1 rounded text-xs font-semibold flex items-center space-x-1 transition-all bg-white dark:bg-slate-600 shadow-sm text-brand-600 dark:text-white" title="Horizontal Tree Layout (Left-to-Right)">
+            <span class="material-symbols-outlined text-sm">keyboard_double_arrow_right</span>
+            <span class="hidden sm:inline">Horizontal</span>
+          </button>
+          <button onclick="setOrientation('vertical')" id="btn-orient-vertical" class="px-2.5 py-1 rounded text-xs font-semibold flex items-center space-x-1 transition-all text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white" title="Vertical Tree Layout (Top-to-Bottom)">
+            <span class="material-symbols-outlined text-sm">keyboard_double_arrow_down</span>
+            <span class="hidden sm:inline">Vertical</span>
+          </button>
+        </div>
+
+        <!-- Connection toggle -->
+        <button onclick="toggleConnections()" id="btn-toggle-connections" class="p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-indigo-50 dark:bg-slate-600 hover:bg-indigo-100 dark:hover:bg-slate-500 text-indigo-600 dark:text-white relative transition-colors" title="Toggle Field Instance Connecting Lines">
+          <span class="material-symbols-outlined text-base">link</span>
+          <span id="connections-active-dot" class="absolute top-1 right-1 w-2 h-2 bg-emerald-500 rounded-full"></span>
+        </button>
+
+        <!-- Inspector Toggle Sidebar Button -->
+        <button onclick="toggleInspector()" id="btn-toggle-inspector" class="p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition-colors" title="Toggle Right Filter & Inspector Panel">
+          <span class="material-symbols-outlined text-base">filter_list</span>
+        </button>
+
+        <!-- Dark mode toggle -->
+        <button onclick="toggleTheme()" class="p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600" title="Toggle Theme">
+          <span id="theme-icon" class="material-symbols-outlined text-base">dark_mode</span>
+        </button>
+
+        <!-- Help Button -->
+        <button onclick="toggleHelpModal(true)" class="p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400" title="Syntax Guide">
+          <span class="material-symbols-outlined text-base">help</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- App Body (Sidebar and main SVG area) -->
+    <div class="grow flex flex-col md:flex-row overflow-hidden relative">
+      
+      <!-- Left Panel: Text Code Editor -->
+      <div class="w-full md:w-[420px] shrink-0 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col h-1/3 md:h-full z-10 font-sans">
+        <!-- Editor Header -->
+        <div class="px-4 py-2 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between shrink-0">
+          <span class="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase flex items-center">
+            <span class="material-symbols-outlined text-sm mr-1.5 text-brand-500">code</span> Diagram Syntax
+          </span>
+          <div class="flex items-center space-x-1">
+            <span id="parsing-badge" class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 flex items-center">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1 animate-pulse"></span> Sync Active
+            </span>
+          </div>
+        </div>
+
+        <!-- Real Code Area -->
+        <div class="grow flex flex-col relative font-mono text-xs overflow-hidden">
+          <!-- Textarea for input -->
+          <textarea id="syntaxInput" placeholder="# Type here or choose a snippet below..." spellcheck="false" class="w-full grow p-4 bg-slate-900 text-slate-100 border-none focus:outline-none focus:ring-0 resize-none font-mono leading-relaxed text-[11px]" oninput="handleInputChange()"></textarea>
+          
+          <!-- Sync Error Banner if any -->
+          <div id="error-banner" class="hidden absolute bottom-0 left-0 right-0 bg-rose-500 text-white p-3 text-xs flex items-start space-x-2 shadow-lg transition-all duration-200">
+            <span class="material-symbols-outlined text-base shrink-0 mt-0.5">warning</span>
+            <div>
+              <p class="font-bold">Syntax Hint</p>
+              <p id="error-message" class="text-rose-100"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Editor Toolbar Helper -->
+        <div class="p-3 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 flex flex-wrap gap-1.5 shrink-0">
+          <button onclick="insertTemplate('title')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center" title="Define the main map title header">
+            <span class="w-2 h-2 rounded bg-indigo-400 mr-1"></span> +Title Tag
+          </button>
+          <button onclick="insertTemplate('persona')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center" title="Declare a system persona profile">
+            <span class="w-2 h-2 rounded bg-pink-400 mr-1"></span> +Persona Tag
+          </button>
+          <button onclick="insertTemplate('element')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center" title="Define a generic shared component">
+            <span class="w-2 h-2 rounded bg-slate-400 mr-1"></span> +Decl element
+          </button>
+          <button onclick="insertTemplate('page')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center">
+            <span class="w-2 h-2 rounded bg-indigo-500 mr-1"></span> +Page
+          </button>
+          <button onclick="insertTemplate('group')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center">
+            <span class="w-2 h-2 rounded bg-amber-500 mr-1"></span> +Group
+          </button>
+          <button onclick="insertTemplate('field')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center">
+            <span class="w-2 h-2 rounded bg-sky-500 mr-1"></span> +Field
+          </button>
+          <button onclick="insertTemplate('button')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center">
+            <span class="w-2 h-2 rounded bg-purple-500 mr-1"></span> +Button
+          </button>
+          <span class="grow"></span>
+          <button onclick="clearEditor()" class="px-2 py-1 bg-rose-50 dark:bg-rose-950/30 text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded text-[10px] font-semibold" title="Clear Editor">
+            Clear
+          </button>
+        </div>
+      </div>
+
+      <!-- Center & Right Panels: Tree Canvas + Collapsible Inspector -->
+      <div class="grow flex h-2/3 md:h-full overflow-hidden relative font-sans">
+        
+        <!-- Main Tree SVG Area -->
+        <div class="grow h-full relative overflow-hidden">
+          
+          <!-- SVG Container Layer -->
+          <div id="canvas-container" class="w-full h-full relative overflow-hidden select-none cursor-grab active:cursor-grabbing grid-bg-light dark:grid-bg-dark">
+            <!-- Main Interactive SVG -->
+            <svg id="diagramSvg" class="w-full h-full absolute inset-0">
+              <!-- Definitions for markers and filters -->
+              <defs>
+                <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+                  <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.08" />
+                </filter>
+                <filter id="shadow-selected" x="-20%" y="-20%" width="140%" height="140%">
+                  <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#6366f1" flood-opacity="0.3" />
+                </filter>
+                <!-- Glowing line filter -->
+                <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                  <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+                <!-- Arrow Marker -->
+                <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M 0 1 L 10 5 L 0 9 z" fill="#cbd5e1" />
+                </marker>
+                <marker id="arrow-dark" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M 0 1 L 10 5 L 0 9 z" fill="#475569" />
+                </marker>
+                <!-- Nav Arrow Marker (href target pointers) -->
+                <marker id="nav-arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M 0 1 L 10 5 L 0 9 z" fill="#0ea5e9" />
+                </marker>
+              </defs>
+              
+              <!-- Transformable group for panning and zooming -->
+              <g id="viewport">
+                <!-- Grid Line connections (The visual tree branches) -->
+                <g id="tree-branches"></g>
+                
+                <!-- Connection paths overlaying duplicate items -->
+                <g id="cross-connections" class="opacity-80"></g>
+
+                <!-- Navigation link lines for href -->
+                <g id="nav-connections" class="opacity-80"></g>
+
+                <!-- Rendered Nodes of the Tree -->
+                <g id="tree-nodes"></g>
+              </g>
+            </svg>
+
+            <!-- Quick Format Guide shown when Canvas is empty -->
+            <div id="empty-state" class="absolute inset-0 flex items-center justify-center p-6 bg-slate-50/95 dark:bg-slate-900/98 overflow-y-auto pointer-events-auto">
+              <div class="max-w-xl w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 p-6 sm:p-8 space-y-6 overflow-hidden font-sans">
+                <div class="text-center space-y-2 font-sans">
+                  <div class="mx-auto w-12 h-12 bg-indigo-50 dark:bg-indigo-950 text-indigo-500 rounded-xl flex items-center justify-center shadow-inner">
+                    <span class="material-symbols-outlined text-3xl animate-spin-slow">explore</span>
+                  </div>
+                  <h2 class="text-xl font-bold text-slate-800 dark:text-white">Information Architecture Canvas</h2>
+                  <p class="text-sm text-slate-500 dark:text-slate-400">Map out your application's structure. Click any card to navigate your code instantly.</p>
+                </div>
+
+                <!-- Quick start guides list -->
+                <div class="space-y-3 font-sans">
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Quick Formatting Guide</h3>
+                  <div class="grid grid-cols-1 gap-1.5 text-xs">
+                    <div class="flex items-start space-x-2.5 p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                      <span class="font-mono text-indigo-500 font-bold bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded shadow-sm shrink-0">title: Name</span>
+                      <span class="text-slate-600 dark:text-slate-300">Set the dynamic diagram name displayed on the top header.</span>
+                    </div>
+                    <div class="flex items-start space-x-2.5 p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                      <span class="font-mono text-indigo-500 font-bold bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded shadow-sm shrink-0">href: card_id</span>
+                      <span class="text-slate-600 dark:text-slate-300">Connects fields with navigational links (e.g. {id: link_a, href: billing_page}).</span>
+                    </div>
+                    <div class="flex items-start space-x-2.5 p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                      <span class="font-mono text-indigo-500 font-bold bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded shadow-sm shrink-0">comment: "Hint"</span>
+                      <span class="text-slate-600 dark:text-slate-300">Displays a modern info-icon helper with interactive hover text.</span>
+                    </div>
+                    <div class="flex items-start space-x-2.5 p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                      <span class="font-mono text-indigo-500 font-bold bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded shadow-sm shrink-0">persona: User</span>
+                      <span class="text-slate-600 dark:text-slate-300">Declares a system user persona. Generates an interactive dropdown filter on the canvas.</span>
+                    </div>
+                    <div class="flex items-start space-x-2.5 p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                      <span class="font-mono text-indigo-500 font-bold bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded shadow-sm shrink-0">Tab Key</span>
+                      <span class="text-slate-600 dark:text-slate-300">Press <strong>Tab</strong> inside the editor to cleanly indent child branches.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Quick Demos / Templates -->
+                <div class="pt-2 border-t border-slate-100 dark:border-slate-700 font-sans">
+                  <p class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2.5">Click to Load a Kickstart Template</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <button onclick="loadTemplate('ecom')" class="p-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-950/80 border border-indigo-100 dark:border-indigo-900/50 rounded-xl text-left transition-colors">
+                      <div class="font-bold text-xs text-indigo-700 dark:text-indigo-300">🛒 Checkout Flow</div>
+                      <div class="text-[10px] text-indigo-600/70 dark:text-indigo-400/70 mt-0.5">Payment steps & persona filters</div>
+                    </button>
+                    <button onclick="loadTemplate('saas')" class="p-2 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-950/80 border border-amber-100 dark:border-amber-900/50 rounded-xl text-left transition-colors">
+                      <div class="font-bold text-xs text-amber-700 dark:text-amber-300 font-bold">📊 SaaS Dashboard</div>
+                      <div class="text-[10px] text-amber-600/70 dark:text-indigo-400/70 mt-0.5">Settings panels & shared buttons</div>
+                    </button>
+                    <button onclick="loadTemplate('simple')" class="p-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-950/80 border border-emerald-100 dark:border-emerald-900/50 rounded-xl text-left transition-colors">
+                      <div class="font-bold text-xs text-emerald-700 dark:text-emerald-300">🌱 Simple Form</div>
+                      <div class="text-[10px] text-emerald-600/70 dark:text-indigo-400/70 mt-0.5">Quick form with unique fields</div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Collapsible Right Panel: Filter & Inspect -->
+        <div id="inspector-panel" class="hidden w-[280px] shrink-0 border-l border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col h-full z-10 font-sans shadow-xl">
+          <!-- Panel Header -->
+          <div class="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between shrink-0">
+            <span class="text-xs font-bold tracking-wider text-slate-500 dark:text-slate-400 uppercase flex items-center">
+              <span class="material-symbols-outlined text-sm mr-1.5 text-brand-500">travel_explore</span> Filter & Inspect
+            </span>
+            <button onclick="toggleInspector()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center">
+              <span class="material-symbols-outlined text-lg">close</span>
+            </button>
+          </div>
+
+          <!-- Filter Options lists (Statuses, Flags, Personas) -->
+          <div class="grow overflow-y-auto p-4 space-y-5">
+            <!-- Active Status Category -->
+            <div id="inspector-section-status" class="space-y-2">
+              <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Statuses</h3>
+              <div id="inspector-status-list" class="space-y-1 text-xs font-sans">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <!-- Active Flags Category -->
+            <div id="inspector-section-flags" class="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-700">
+              <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Flags</h3>
+              <div id="inspector-flags-list" class="space-y-1 text-xs font-sans">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <!-- Active Personas Category -->
+            <div id="inspector-section-personas" class="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-700">
+              <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Persona Access</h3>
+              <div id="inspector-personas-list" class="space-y-1 text-xs font-sans">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RESTORED: Persona Filter Card Floating in Top Right -->
+        <div id="persona-filter-card" class="hidden absolute top-4 right-4 z-20 bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 text-xs w-64 backdrop-blur-sm pointer-events-auto transition-all duration-300 hover:shadow-xl">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="font-bold text-slate-800 dark:text-white flex items-center">
+              <span class="material-symbols-outlined text-brand-500 text-sm mr-1.5">group</span>
+              Persona Filter
+            </h3>
+          </div>
+          <div class="relative">
+            <select id="personaSelect" onchange="setPersonaFilter(this.value)" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer text-slate-800 dark:text-slate-100">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Fully Restored Overlay Action Panel (Floating Canvas Controls) -->
+        <div class="absolute bottom-4 right-4 z-20 flex items-center space-x-1.5 bg-white dark:bg-slate-800 p-1.5 shadow-lg border border-slate-200 dark:border-slate-700 rounded-xl backdrop-blur-sm">
+          <button onclick="zoomOut()" class="p-2 rounded-lg bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition-colors flex items-center justify-center" title="Zoom Out">
+            <span class="material-symbols-outlined text-sm">zoom_out</span>
+          </button>
+          
+          <!-- Zoom Preset Select Menu -->
+          <div class="relative">
+            <select id="zoomSelect" onchange="setZoomFromMenu(this.value)" class="bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-lg px-2 py-1 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-600 focus:outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer appearance-none pr-6 text-center">
+              <option value="0.25">25%</option>
+              <option value="0.50">50%</option>
+              <option value="0.75">75%</option>
+              <option value="1.00">100%</option>
+              <option value="1.25">125%</option>
+              <option value="1.50">150%</option>
+              <option value="2.00">200%</option>
+            </select>
+            <span class="material-symbols-outlined absolute right-1 top-1/2 -translate-y-1/2 text-[12px] pointer-events-none text-slate-400">arrow_drop_down</span>
+          </div>
+
+          <button onclick="zoomIn()" class="p-2 rounded-lg bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition-colors flex items-center justify-center" title="Zoom In">
+            <span class="material-symbols-outlined text-sm">zoom_in</span>
+          </button>
+          
+          <div class="w-[1px] h-6 bg-slate-200 dark:bg-slate-600 mx-1"></div>
+          
+          <!-- Focus on main card -->
+          <button onclick="focusMainCard()" class="p-2 rounded-lg bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition-colors flex items-center justify-center" title="Focus on Main/Root Card">
+            <span class="material-symbols-outlined text-sm">center_focus_strong</span>
+          </button>
+          
+          <div class="w-[1px] h-6 bg-slate-200 dark:bg-slate-600 mx-1"></div>
+          
+          <!-- Expand / Collapse Contextual Actions (Google Material expand_content / collapse_content) -->
+          <button onclick="handleGlobalExpand()" id="btn-global-expand" class="p-2 rounded-lg bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition-colors flex items-center justify-center" title="Expand All (Whole Model)">
+            <span class="material-symbols-outlined text-sm">expand_content</span>
+          </button>
+          <button onclick="handleGlobalCollapse()" id="btn-global-collapse" class="p-2 rounded-lg bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition-colors flex items-center justify-center" title="Collapse All (Whole Model)">
+            <span class="material-symbols-outlined text-sm">collapse_content</span>
+          </button>
+          
+          <div class="w-[1px] h-6 bg-slate-200 dark:bg-slate-600 mx-1"></div>
+
+          <button onclick="exportToSVG()" class="px-2.5 py-1.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold flex items-center space-x-1 transition-colors" title="Download SVG Diagram">
+            <span class="material-symbols-outlined text-sm">download</span>
+            <span>Export SVG</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Help Modal & Syntax Cheat Sheet -->
+    <div id="helpModal" class="hidden fixed inset-0 z-50 overflow-auto bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in duration-200 font-sans">
+        <!-- Modal Header -->
+        <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
+          <div class="flex items-center space-x-2">
+            <span class="material-symbols-outlined text-indigo-500 text-lg mr-1">book</span>
+            <h3 class="text-md font-bold text-slate-900 dark:text-white font-sans">Diagram Syntax Reference Guide</h3>
+          </div>
+          <button onclick="toggleHelpModal(false)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors flex items-center">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        
+        <!-- Modal Body (Scrollable) -->
+        <div class="p-6 overflow-y-auto space-y-6 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+          <div>
+            <h4 class="font-bold text-slate-900 dark:text-white mb-2 flex items-center font-sans">
+              <span class="bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300 w-5 h-5 rounded-full inline-flex items-center justify-center text-xs mr-2 font-bold">1</span>
+              Diagram Title
+            </h4>
+            <p class="text-xs mb-2">Use the <code class="text-indigo-500 font-semibold font-mono">title:</code> tag at the start of your file to set the header title at the top of the interface screen.</p>
+            <pre class="bg-slate-950 text-slate-100 p-3 rounded-lg text-xs leading-5">title: My Checkout Process Flow</pre>
+          </div>
+
+          <div>
+            <h4 class="font-bold text-slate-900 dark:text-white mb-2 flex items-center font-sans">
+              <span class="bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300 w-5 h-5 rounded-full inline-flex items-center justify-center text-xs mr-2 font-bold">2</span>
+              User Personas & Role Filtering
+            </h4>
+            <p class="text-xs mb-2">Declare roles to filter complex architectures for different users. Use <code class="text-indigo-500 font-semibold font-mono">persona: Name</code> globally, then restrict elements:</p>
+            <pre class="bg-slate-950 text-slate-100 p-3 rounded-lg text-xs leading-5">
+persona: Customer
+persona: Admin
+
+page: Dashboard
+  button: Standard Action
+  button: Administrative Refund {personas: [Admin]}
+            </pre>
+          </div>
+
+          <div>
+            <h4 class="font-bold text-slate-900 dark:text-white mb-2 flex items-center font-sans">
+              <span class="bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300 w-5 h-5 rounded-full inline-flex items-center justify-center text-xs mr-2 font-bold">3</span>
+              Hierarchical Indentation
+            </h4>
+            <p class="text-xs mb-2">Build your tree levels using spaces or tabs at the start of each line (2 spaces per indent layer is recommended).</p>
+            <pre class="bg-slate-950 text-slate-100 p-3 rounded-lg text-xs leading-5">
+page: Homepage
+  group: Header Section
+    button: Login {id: auth_btn}</pre>
+          </div>
+
+          <div>
+            <h4 class="font-bold text-slate-900 dark:text-white mb-2 flex items-center font-sans">
+              <span class="bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300 w-5 h-5 rounded-full inline-flex items-center justify-center text-xs mr-2 font-bold">4</span>
+              Advanced Element Reusability, Navigation Links & Comments
+            </h4>
+            <p class="text-xs mb-2">InfoArch supports powerful model declarations. You can easily specify comments (help tooltips) and navigation pointer paths using `href`:</p>
+            <ul class="list-disc pl-5 text-xs space-y-1.5 mb-3">
+              <li><strong>Navigation Links (`href`):</strong> Use ID tags to represent navigation pointers between distinct areas of your IA diagram:
+                <pre class="bg-slate-950 text-slate-100 p-2 rounded-lg text-[11px] mt-1">button: Proceed to Pay {id: proceed_btn, href: payment_view}</pre>
+              </li>
+              <li><strong>Explanatory Help tooltips (`comment`):</strong> Write descriptive guides on nodes using quotes:
+                <pre class="bg-slate-950 text-slate-100 p-2.5 rounded-lg text-[11px] mt-1">input: Promo Code {id: discount, comment: "Applies 10% coupon codes"}</pre>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+          <button onclick="toggleHelpModal(false)" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all font-sans">
+            Got it, Let's Design!
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- Predefined Templates ---
+    const templates = {
+      ecom: `title: Checkout funnel Flow
+# Declare personas for roles-based view filtering
+persona: Customer
+persona: Admin
+
+# Reusable Components Master Library
+element: Promo Code {id: discount_code, status: warning, flags: [reusable], comment: "Applies coupon discounts"}
+element: Apply Discount {id: apply_code}
+element: Proceed to Pay {id: pay_btn_primary, flags: [primary], href: payment_details_group}
+
+page: Checkout Funnel {status: success, id: start_checkout_page}
+  group: Step 1: Shopping Cart
+    input: {id: discount_code}
+    button: {id: apply_code}
+    button: {id: pay_btn_primary}
+  group: Step 2: Payment Details {id: payment_details_group}
+    input: Credit Card Number {id: card_num, personas: [Customer, Admin], comment: "Accepts Visa, Mastercard, Amex"}
+    calendar: Expiry Date {id: card_expiry, personas: [Customer]}
+    input: {id: discount_code, flags: [optional], comment: "Double-check before applying coupon"}
+    button: {id: apply_code}
+    button: Submit Payment {id: pay_btn_submit, status: success, flags: [secure, primary], href: receipt_page}
+  group: Step 3: Success Confirmation
+    page: Receipt Screen {id: receipt_page}
+      button: Print Invoice {id: print_invoice, status: info}
+      button: Print Discount Coupon {id: print_discount, status: draft, href: start_checkout_page}
+      button: Refund Transaction {id: refund_btn, status: danger, personas: [Admin], comment: "System Admins only"}`,
+
+      saas: `title: SaaS Dashboard Map
+persona: Moderator
+persona: Member
+
+# Sidebar navigation reference template
+element: Dashboard Home {id: link_dash}
+element: Settings Screen {id: link_settings}
+element: Workspace Title {id: ws_name, flags: [required]}
+
+page: User Admin Portal
+  group: Nav Sidebar
+    button: {id: link_dash}
+    button: {id: link_settings, href: settings_panel_group}
+    button: Quick Search {id: global_search, status: info, comment: "Global cross-index finder"}
+  group: Dashboard View
+    group: Main Control Panel
+      button: Open Search Panel {id: global_search, flags: [popup]}
+      input: {id: ws_name}
+    group: Settings Panel {status: warning, id: settings_panel_group}
+      input: {id: ws_name, flags: [disabled], comment: "Modifiable inside root billing portal only"}
+      button: Save Configuration {id: save_all_configs, status: success, personas: [Moderator]}
+      button: Return Home {id: link_dash}`,
+
+      simple: `title: Standard Registration
+persona: Applicant
+persona: Reviewer
+
+element: Master Input {id: user_input, flags: [required], comment: "Master profile input template"}
+
+page: Home Screen
+  group: Form Section
+    input: {id: user_input, personas: [Applicant]}
+    input: User Profile Name {id: user_input, comment: "Must match passport spelling"}
+    button: Submit {status: success, personas: [Applicant]}
+    button: Accept Profile {status: success, personas: [Reviewer]}
+    button: Reject Profile {status: error, personas: [Reviewer]}`
+    };
+
+    // --- State Variables ---
+    let zoomLevel = 1.0;
+    let panX = 40;
+    let panY = 50;
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let orientation = 'horizontal'; // 'horizontal' or 'vertical'
+    let showConnections = true;
+    let activeNodes = [];
+    let hoveredNodeId = null; // Stores shared ID of hovered element to glow connection paths
+    let selectedNodePathId = null; // Store path identifier of selected card
+    const collapsedPaths = new Set(); // Store hierarchy path identifiers of collapsed nodes
+    let selectedPersona = 'all'; // Current persona filter: 'all' or specific persona name
+    let showInspector = false; // Collapsible Right sidebar Inspector toggle state
+
+    // Setup color cache for shared instances
+    const idColorCache = {};
+
+    // --- Dom Elements ---
+    const diagramSvg = document.getElementById('diagramSvg');
+    const viewport = document.getElementById('viewport');
+    const canvasContainer = document.getElementById('canvas-container');
+    const syntaxInput = document.getElementById('syntaxInput');
+    const errorBanner = document.getElementById('error-banner');
+    const errorMessage = document.getElementById('error-message');
+    const emptyState = document.getElementById('empty-state');
+    const btnOrientHorizontal = document.getElementById('btn-orient-horizontal');
+    const btnOrientVertical = document.getElementById('btn-orient-vertical');
+    const btnToggleConnections = document.getElementById('btn-toggle-connections');
+
+    // --- Initialization ---
+    window.addEventListener('load', () => {
+      // Start completely blank/empty as requested
+      syntaxInput.value = "";
+      
+      // Auto-detect theme preference
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark');
+        const themeIcon = document.getElementById('theme-icon');
+        if (themeIcon) themeIcon.textContent = 'light_mode';
+      } else {
+        const themeIcon = document.getElementById('theme-icon');
+        if (themeIcon) themeIcon.textContent = 'dark_mode';
+      }
+
+      // Add Mouse Pan Event Listeners
+      canvasContainer.addEventListener('mousedown', startPan);
+      window.addEventListener('mousemove', dragPan);
+      window.addEventListener('mouseup', endPan);
+      canvasContainer.addEventListener('wheel', handleWheel, { passive: false });
+
+      // Add touch capabilities
+      canvasContainer.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+          isDragging = true;
+          startX = e.touches[0].clientX - panX;
+          startY = e.touches[0].clientY - panY;
+        }
+      });
+      canvasContainer.addEventListener('touchmove', (e) => {
+        if (isDragging && e.touches.length === 1) {
+          panX = e.touches[0].clientX - startX;
+          panY = e.touches[0].clientY - startY;
+          applyTransform();
+        }
+      });
+      canvasContainer.addEventListener('touchend', () => { isDragging = false; });
+
+      // Add custom Tab key handler to the syntax editor
+      setupTabKeyHandler();
+
+      // Run initial parse (will show empty/guide view)
+      parseAndRender();
+    });
+
+    // --- File Import System ---
+    function triggerFileInput() {
+      const fileInput = document.getElementById('fileInput');
+      if (fileInput) fileInput.click();
+    }
+
+    // handleFileUpload function
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        syntaxInput.value = e.target.result;
+        // Clean up previous states
+        selectedNodePathId = null;
+        collapsedPaths.clear();
+        selectedPersona = 'all';
+        parseAndRender();
+        resetZoom();
+      };
+      reader.readAsText(file);
+    }
+
+    // --- File Save System ---
+    function saveToFile() {
+      const text = syntaxInput.value;
+      let filename = "untitled-diagram.ia";
+      
+      // Extract title if available in the text
+      const titleMatch = text.match(/^title:\s*(.+)$/m);
+      if (titleMatch && titleMatch[1].trim()) {
+        const sanitizedTitle = titleMatch[1].trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9\s_-]/g, '')
+          .replace(/\s+/g, '-');
+        if (sanitizedTitle) {
+          filename = `${sanitizedTitle}.ia`;
+        }
+      }
+
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    // --- Tab key and Shift+Tab handler ---
+    function setupTabKeyHandler() {
+      syntaxInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Tab') {
+          e.preventDefault(); // Stop focus navigation
+          
+          const start = this.selectionStart;
+          const end = this.selectionEnd;
+          const value = this.value;
+          const tabChar = "  "; // Using 2 spaces for a clean standard indent layout
+
+          if (!e.shiftKey) {
+            // CASE 1: Standard Indentation
+            if (start === end) {
+              // No text highlighted: Insert 2 spaces at current cursor position
+              this.value = value.substring(0, start) + tabChar + value.substring(end);
+              this.selectionStart = this.selectionEnd = start + tabChar.length;
+            } else {
+              // Text highlighted: Indent all lines within the selection
+              const selectedText = value.substring(start, end);
+              const lines = selectedText.split('\n');
+              const indentedLines = lines.map(line => tabChar + line);
+              const newText = indentedLines.join('\n');
+              
+              this.value = value.substring(0, start) + newText + value.substring(end);
+              this.selectionStart = start;
+              this.selectionEnd = start + newText.length;
+            }
+          } else {
+            // CASE 2: Outdent (Shift + Tab)
+            if (start === end) {
+              // Single line unindentation
+              const beforeCursor = value.substring(0, start);
+              const lineStartPos = beforeCursor.lastIndexOf('\n') + 1;
+              const currentLine = value.substring(lineStartPos, start);
+              
+              if (currentLine.startsWith('  ')) {
+                this.value = value.substring(0, lineStartPos) + currentLine.substring(2) + value.substring(start);
+                this.selectionStart = this.selectionEnd = start - 2;
+              } else if (currentLine.startsWith(' ')) {
+                this.value = value.substring(0, lineStartPos) + currentLine.substring(1) + value.substring(start);
+                this.selectionStart = this.selectionEnd = start - 1;
+              } else if (currentLine.startsWith('\t')) {
+                this.value = value.substring(0, lineStartPos) + currentLine.substring(1) + value.substring(start);
+                this.selectionStart = this.selectionEnd = start - 1;
+              }
+            } else {
+              // Block selection unindentation
+              const selectedText = value.substring(start, end);
+              const lines = selectedText.split('\n');
+              const outdentedLines = lines.map(line => {
+                if (line.startsWith('  ')) return line.substring(2);
+                if (line.startsWith(' ')) return line.substring(1);
+                if (line.startsWith('\t')) return line.substring(1);
+                return line;
+              });
+              const newText = outdentedLines.join('\n');
+              
+              this.value = value.substring(0, start) + newText + value.substring(end);
+              this.selectionStart = start;
+              this.selectionEnd = start + newText.length;
+            }
+          }
+
+          // Trigger rendering engine on key modification
+          parseAndRender();
+        }
+      });
+    }
+
+    // --- Recursive path identifier generator ---
+    function assignPaths(node, parentPath = "") {
+      const currentPath = parentPath === "" ? String(node.indexInParent) : `${parentPath}.${node.indexInParent}`;
+      node.pathId = currentPath;
+      node.children.forEach((child, idx) => {
+        child.indexInParent = idx;
+        assignPaths(child, currentPath);
+      });
+    }
+
+    // --- Helper to check if node has a collapsed ancestor ---
+    function isNodeHidden(node) {
+      let current = node.parent;
+      while (current) {
+        if (collapsedPaths.has(current.pathId)) {
+          return true;
+        }
+        current = current.parent;
+      }
+      return false;
+    }
+
+    // --- Helper to check if node matches the currently selected persona filter ---
+    function matchesSelectedPersona(node) {
+      if (selectedPersona === 'all') return true;
+      if (!node.personas || node.personas.length === 0) return true;
+      return node.personas.includes(selectedPersona);
+    }
+
+    // --- Node selection & sync editor scrolling handler ---
+    function selectNode(pathId) {
+      selectedNodePathId = pathId;
+      parseAndRender();
+    }
+
+    function highlightAndScrollToLine(start, end) {
+      syntaxInput.focus();
+      syntaxInput.setSelectionRange(start, end);
+      
+      // Calculate scrolling dynamically
+      const textVal = syntaxInput.value;
+      const linesBefore = textVal.substring(0, start).split('\n').length;
+      const totalLines = textVal.split('\n').length;
+      const lineHeight = syntaxInput.scrollHeight / totalLines;
+      
+      // Scroll smoothly to position selection safely in view
+      syntaxInput.scrollTo({
+        top: (linesBefore - 4) * lineHeight,
+        behavior: 'smooth'
+      });
+    }
+
+    function handleNodeClick(e, pathId, lineStart, lineEnd) {
+      if (e) e.stopPropagation();
+      selectNode(pathId);
+      highlightAndScrollToLine(lineStart, lineEnd);
+      
+      // Also automatically center the canvas on this selected node!
+      const targetedNode = activeNodes.find(n => n.pathId === pathId);
+      if (targetedNode) {
+        centerOnNode(targetedNode);
+      }
+    }
+
+    // --- Pan/Scroll Viewport directly to focus a Node ---
+    function centerOnNode(node) {
+      if (!node || node.x === undefined || node.y === undefined) return;
+      const rect = canvasContainer.getBoundingClientRect();
+      const nodeW = 220;
+      const nodeH = (node.type === 'page' || node.type === 'group' || node.type === 'field group' || node.type === 'fieldgroup') ? 60 : 44;
+      
+      // Calculate panX and panY to place card directly in viewport center
+      panX = (rect.width / 2) - (node.x + nodeW / 2) * zoomLevel;
+      panY = (rect.height / 2) - (node.y + nodeH / 2) * zoomLevel;
+      applyTransform();
+    }
+
+    // --- Focus/Center Viewport on the Main root Node card ---
+    function focusMainCard() {
+      // Find the first top-level root node that is visible (not filtered by persona)
+      const mainCard = activeNodes.find(n => n.depth === 0 && !n.hidden);
+      if (mainCard) {
+        centerOnNode(mainCard);
+        selectNode(mainCard.pathId);
+      } else {
+        resetZoom();
+      }
+    }
+
+    // --- Inspector Panel Toggle ---
+    function toggleInspector() {
+      showInspector = !showInspector;
+      const panel = document.getElementById('inspector-panel');
+      const btn = document.getElementById('btn-toggle-inspector');
+      if (showInspector) {
+        if (panel) panel.classList.remove('hidden');
+        if (btn) btn.classList.add('bg-indigo-50', 'dark:bg-slate-700', 'text-brand-500');
+        populateInspector();
+      } else {
+        if (panel) panel.classList.add('hidden');
+        if (btn) btn.classList.remove('bg-indigo-50', 'dark:bg-slate-700', 'text-brand-500');
+      }
+    }
+
+    // --- Populate and Render Right Inspector Menu ---
+    function populateInspector() {
+      if (!showInspector) return;
+
+      const statusList = document.getElementById('inspector-status-list');
+      const flagsList = document.getElementById('inspector-flags-list');
+      const personasList = document.getElementById('inspector-personas-list');
+
+      if (!statusList || !flagsList || !personasList) return;
+
+      statusList.innerHTML = '';
+      flagsList.innerHTML = '';
+      personasList.innerHTML = '';
+
+      const statusesMap = {};
+      const flagsMap = {};
+      const personasMap = {};
+
+      activeNodes.forEach(node => {
+        if (node.hidden) return;
+
+        // Group by status
+        if (node.status && node.status !== 'default') {
+          if (!statusesMap[node.status]) statusesMap[node.status] = [];
+          statusesMap[node.status].push(node);
+        }
+
+        // Group by flags
+        if (node.flags && node.flags.length > 0) {
+          node.flags.forEach(flag => {
+            if (!flagsMap[flag]) flagsMap[flag] = [];
+            flagsMap[flag].push(node);
+          });
+        }
+
+        // Group by personas
+        if (node.personas && node.personas.length > 0) {
+          node.personas.forEach(persona => {
+            if (!personasMap[persona]) personasMap[persona] = [];
+            personasMap[persona].push(node);
+          });
+        }
+      });
+
+      // RENDER STATUSES
+      const statusKeys = Object.keys(statusesMap);
+      if (statusKeys.length === 0) {
+        statusList.innerHTML = '<p class="text-slate-400 italic">No custom statuses configured</p>';
+      } else {
+        statusKeys.forEach(status => {
+          const section = document.createElement('div');
+          section.className = 'mb-2';
+          section.innerHTML = `
+            <div class="font-semibold text-slate-700 dark:text-slate-300 capitalize flex items-center justify-between mb-1 bg-slate-50 dark:bg-slate-900/40 p-1.5 rounded">
+              <span>${status}</span>
+              <span class="bg-indigo-50 dark:bg-slate-800 text-brand-600 dark:text-brand-400 px-1.5 py-0.5 rounded text-[10px]">${statusesMap[status].length}</span>
+            </div>
+            <div class="space-y-1 pl-2">
+              ${statusesMap[status].map(node => `
+                <button onclick="handleNodeClick(null, '${node.pathId}', ${node.lineStart}, ${node.lineEnd})" class="w-full text-left truncate text-slate-500 dark:text-slate-400 hover:text-brand-500 hover:underline flex items-center space-x-1.5">
+                  <span class="material-symbols-outlined text-[12px]">subdirectory_arrow_right</span>
+                  <span class="truncate">${node.label}</span>
+                </button>
+              `).join('')}
+            </div>
+          `;
+          statusList.appendChild(section);
+        });
+      }
+
+      // RENDER FLAGS
+      const flagKeys = Object.keys(flagsMap);
+      if (flagKeys.length === 0) {
+        flagsList.innerHTML = '<p class="text-slate-400 italic">No custom flags declared</p>';
+      } else {
+        flagKeys.forEach(flag => {
+          const section = document.createElement('div');
+          section.className = 'mb-2';
+          section.innerHTML = `
+            <div class="font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between mb-1 bg-slate-50 dark:bg-slate-900/40 p-1.5 rounded">
+              <span>#${flag}</span>
+              <span class="bg-indigo-50 dark:bg-slate-800 text-brand-600 dark:text-brand-400 px-1.5 py-0.5 rounded text-[10px]">${flagsMap[flag].length}</span>
+            </div>
+            <div class="space-y-1 pl-2">
+              ${flagsMap[flag].map(node => `
+                <button onclick="handleNodeClick(null, '${node.pathId}', ${node.lineStart}, ${node.lineEnd})" class="w-full text-left truncate text-slate-500 dark:text-slate-400 hover:text-brand-500 hover:underline flex items-center space-x-1.5">
+                  <span class="material-symbols-outlined text-[12px]">subdirectory_arrow_right</span>
+                  <span class="truncate">${node.label}</span>
+                </button>
+              `).join('')}
+            </div>
+          `;
+          flagsList.appendChild(section);
+        });
+      }
+
+      // RENDER PERSONAS
+      const personaKeys = Object.keys(personasMap);
+      if (personaKeys.length === 0) {
+        personasList.innerHTML = '<p class="text-slate-400 italic">No persona restrictions specified</p>';
+      } else {
+        personaKeys.forEach(persona => {
+          const section = document.createElement('div');
+          section.className = 'mb-2';
+          section.innerHTML = `
+            <div class="font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between mb-1 bg-slate-50 dark:bg-slate-900/40 p-1.5 rounded">
+              <span>${persona}</span>
+              <span class="bg-indigo-50 dark:bg-slate-800 text-brand-600 dark:text-brand-400 px-1.5 py-0.5 rounded text-[10px]">${personasMap[persona].length}</span>
+            </div>
+            <div class="space-y-1 pl-2">
+              ${personasMap[persona].map(node => `
+                <button onclick="handleNodeClick(null, '${node.pathId}', ${node.lineStart}, ${node.lineEnd})" class="w-full text-left truncate text-slate-500 dark:text-slate-400 hover:text-brand-500 hover:underline flex items-center space-x-1.5">
+                  <span class="material-symbols-outlined text-[12px]">subdirectory_arrow_right</span>
+                  <span class="truncate">${node.label}</span>
+                </button>
+              `).join('')}
+            </div>
+          `;
+          personasList.appendChild(section);
+        });
+      }
+    }
+
+    // --- Core Parser logic ---
+    function parseAndRender() {
+      const text = syntaxInput.value;
+      if (!text.trim()) {
+        emptyState.classList.remove('hidden');
+        const card = document.getElementById('persona-filter-card');
+        if (card) card.classList.add('hidden');
+        document.getElementById('tree-branches').innerHTML = '';
+        document.getElementById('tree-nodes').innerHTML = '';
+        document.getElementById('cross-connections').innerHTML = '';
+        document.getElementById('nav-connections').innerHTML = '';
+        document.getElementById('header-diagram-title').innerText = "Untitled Diagram";
+        return;
+      }
+      emptyState.classList.add('hidden');
+
+      const lines = text.split('\n');
+      const nodes = [];
+      let parseError = null;
+
+      // Track precise character index positions for every line to allow sync scrolling
+      let currentPos = 0;
+      const lineOffsets = [];
+      lines.forEach((line) => {
+        lineOffsets.push({ start: currentPos, end: currentPos + line.length });
+        currentPos += line.length + 1; // +1 to account for newline character
+      });
+
+      // Dynamic Title Variable
+      let diagramTitle = "Untitled Diagram";
+
+      // Keep track of all declared unique personas
+      const declaredPersonas = new Set();
+
+      // FIRST PASS: Parse metadata (like title:, persona:) and build a directory of declared elements.
+      const declaredElements = {};
+
+      lines.forEach((rawLine) => {
+        const lineStr = rawLine.replace(/\r/g, '');
+        if (!lineStr.trim() || lineStr.trim().startsWith('#') || lineStr.trim().startsWith('//')) {
+          return;
+        }
+
+        const cleanLine = lineStr.trim();
+        
+        // Scan for title metadata tag
+        if (cleanLine.toLowerCase().startsWith('title:')) {
+          diagramTitle = cleanLine.substring(6).trim();
+          return;
+        }
+
+        // Scan for declared personas
+        if (cleanLine.toLowerCase().startsWith('persona:')) {
+          const personaPart = cleanLine.substring(8).trim().split('{')[0].trim();
+          if (personaPart) {
+            declaredPersonas.add(personaPart);
+          }
+          return;
+        }
+
+        const colonIndex = cleanLine.indexOf(':');
+        if (colonIndex === -1) return;
+
+        const type = cleanLine.substring(0, colonIndex).trim().toLowerCase();
+        const rest = cleanLine.substring(colonIndex + 1).trim();
+
+        let label = rest;
+        let rawAttr = '';
+        const attrMatch = rest.match(/\{([^}]+)\}$/);
+        if (attrMatch) {
+          rawAttr = attrMatch[1].trim();
+          label = rest.substring(0, rest.lastIndexOf('{')).trim();
+        }
+
+        let customId = '';
+        let status = 'default';
+        let flags = [];
+        let nodePersonas = [];
+        let comment = '';
+        let href = '';
+        let hasStatusSet = false;
+        let hasFlagsSet = false;
+
+        if (rawAttr) {
+          // Robust custom splitter protecting brackets and string quotes
+          const parts = [];
+          let currentPart = "";
+          let inQuotes = false;
+          let quoteChar = "";
+          let bracketDepth = 0;
+
+          for (let i = 0; i < rawAttr.length; i++) {
+            const char = rawAttr[i];
+            if ((char === '"' || char === "'") && (i === 0 || rawAttr[i-1] !== '\\')) {
+              if (inQuotes && char === quoteChar) {
+                inQuotes = false;
+              } else if (!inQuotes) {
+                inQuotes = true;
+                quoteChar = char;
+              }
+            }
+            if (!inQuotes) {
+              if (char === '[') bracketDepth++;
+              if (char === ']') bracketDepth--;
+            }
+            
+            if (char === ',' && !inQuotes && bracketDepth === 0) {
+              parts.push(currentPart);
+              currentPart = "";
+            } else {
+              currentPart += char;
+            }
+          }
+          if (currentPart) {
+            parts.push(currentPart);
+          }
+
+          parts.forEach(part => {
+            const kv = part.split(':');
+            if (kv.length >= 2) {
+              const key = kv[0].trim().toLowerCase();
+              let val = kv.slice(1).join(':').trim();
+
+              if (key === 'id') {
+                customId = val;
+              } else if (key === 'status') {
+                status = val.toLowerCase();
+                hasStatusSet = true;
+              } else if (key === 'comment') {
+                let cleanVal = val.trim();
+                if ((cleanVal.startsWith('"') && cleanVal.endsWith('"')) || (cleanVal.startsWith("'") && cleanVal.endsWith("'"))) {
+                  cleanVal = cleanVal.substring(1, cleanVal.length - 1);
+                }
+                comment = cleanVal;
+              } else if (key === 'href') {
+                href = val.trim();
+              } else if (key === 'flags') {
+                const flagMatch = val.match(/\[(.*)\]/);
+                if (flagMatch) {
+                  flags = flagMatch[1].split(',').map(f => f.trim()).filter(Boolean);
+                  hasFlagsSet = true;
+                }
+              } else if (key === 'personas') {
+                const personaMatch = val.match(/\[(.*)\]/);
+                if (personaMatch) {
+                  nodePersonas = personaMatch[1].split(',').map(p => p.trim()).filter(Boolean);
+                } else {
+                  nodePersonas = [val.trim()];
+                }
+                // Automatically add inline-defined personas to our system filter set
+                nodePersonas.forEach(p => declaredPersonas.add(p));
+              }
+            }
+          });
+        }
+
+        // Parse priority index matching:
+        // Do not overwrite previous explicit "element:" metadata labels with inline leaf overwrites
+        if (customId && label !== '') {
+          const existing = declaredElements[customId];
+          if (!existing) {
+            declaredElements[customId] = {
+              type,
+              label,
+              status,
+              flags,
+              personas: nodePersonas,
+              comment,
+              href,
+              hasStatusSet,
+              hasFlagsSet
+            };
+          } else if (existing.type !== 'element' && type === 'element') {
+            // Explicit "element:" declarations take absolute naming priority over standard leaf definitions
+            declaredElements[customId] = {
+              type,
+              label,
+              status,
+              flags,
+              personas: nodePersonas,
+              comment,
+              href,
+              hasStatusSet,
+              hasFlagsSet
+            };
+          }
+        }
+      });
+
+      // Update Screen Header Title
+      document.getElementById('header-diagram-title').innerText = diagramTitle;
+
+      // Update Persona Dropdown Selector Overlay
+      updatePersonaDropdown(declaredPersonas);
+
+      // SECOND PASS: Parse final visual tree hierarchies and resolve references
+      lines.forEach((rawLine, index) => {
+        const lineStr = rawLine.replace(/\r/g, '');
+        if (!lineStr.trim() || lineStr.trim().startsWith('#') || lineStr.trim().startsWith('//')) {
+          return;
+        }
+
+        const cleanLine = lineStr.trim();
+        
+        // Skip metadata lines in Pass 2
+        if (cleanLine.toLowerCase().startsWith('title:') || cleanLine.toLowerCase().startsWith('persona:')) {
+          return;
+        }
+
+        const indentMatch = lineStr.match(/^(\s*)/);
+        const indentLength = indentMatch ? indentMatch[1].length : 0;
+
+        const colonIndex = cleanLine.indexOf(':');
+        if (colonIndex === -1) {
+          parseError = `Line ${index + 1}: Format must look like 'type: Label' or 'type: {id: ID}'`;
+          return;
+        }
+
+        const type = cleanLine.substring(0, colonIndex).trim().toLowerCase();
+        const rest = cleanLine.substring(colonIndex + 1).trim();
+
+        let label = rest;
+        let rawAttr = '';
+        const attrMatch = rest.match(/\{([^}]+)\}$/);
+        if (attrMatch) {
+          rawAttr = attrMatch[1].trim();
+          label = rest.substring(0, rest.lastIndexOf('{')).trim();
+        }
+
+        const attributes = {
+          id: `node-${index}`,
+          status: 'default',
+          flags: [],
+          personas: [],
+          comment: '',
+          href: '',
+          customIdSet: false,
+          hasStatusSet: false,
+          hasFlagsSet: false
+        };
+
+        if (rawAttr) {
+          // Robust custom splitter protecting brackets and string quotes
+          const parts = [];
+          let currentPart = "";
+          let inQuotes = false;
+          let quoteChar = "";
+          let bracketDepth = 0;
+
+          for (let i = 0; i < rawAttr.length; i++) {
+            const char = rawAttr[i];
+            if ((char === '"' || char === "'") && (i === 0 || rawAttr[i-1] !== '\\')) {
+              if (inQuotes && char === quoteChar) {
+                inQuotes = false;
+              } else if (!inQuotes) {
+                inQuotes = true;
+                quoteChar = char;
+              }
+            }
+            if (!inQuotes) {
+              if (char === '[') bracketDepth++;
+              if (char === ']') bracketDepth--;
+            }
+            
+            if (char === ',' && !inQuotes && bracketDepth === 0) {
+              parts.push(currentPart);
+              currentPart = "";
+            } else {
+              currentPart += char;
+            }
+          }
+          if (currentPart) {
+            parts.push(currentPart);
+          }
+
+          parts.forEach(part => {
+            const kv = part.split(':');
+            if (kv.length >= 2) {
+              const key = kv[0].trim().toLowerCase();
+              let val = kv.slice(1).join(':').trim();
+
+              if (key === 'id') {
+                attributes.id = val;
+                attributes.customIdSet = true;
+              } else if (key === 'status') {
+                attributes.status = val.toLowerCase();
+                attributes.hasStatusSet = true;
+              } else if (key === 'comment') {
+                let cleanVal = val.trim();
+                if ((cleanVal.startsWith('"') && cleanVal.endsWith('"')) || (cleanVal.startsWith("'") && cleanVal.endsWith("'"))) {
+                  cleanVal = cleanVal.substring(1, cleanVal.length - 1);
+                }
+                attributes.comment = cleanVal;
+              } else if (key === 'href') {
+                attributes.href = val.trim();
+              } else if (key === 'flags') {
+                const flagMatch = val.match(/\[(.*)\]/);
+                if (flagMatch) {
+                  attributes.flags = flagMatch[1].split(',').map(f => f.trim()).filter(Boolean);
+                  attributes.hasFlagsSet = true;
+                }
+              } else if (key === 'personas') {
+                const personaMatch = val.match(/\[(.*)\]/);
+                if (personaMatch) {
+                  attributes.personas = personaMatch[1].split(',').map(p => p.trim()).filter(Boolean);
+                } else {
+                  attributes.personas = [val.trim()];
+                }
+              }
+            }
+          });
+        }
+
+        let resolvedType = type;
+        let resolvedLabel = label;
+        let resolvedStatus = attributes.status;
+        let resolvedFlags = attributes.flags;
+        let resolvedPersonas = attributes.personas;
+        let resolvedComment = attributes.comment;
+        let resolvedHref = attributes.href;
+        let hasCustomId = attributes.customIdSet;
+
+        if (attributes.customIdSet && declaredElements[attributes.id]) {
+          const stored = declaredElements[attributes.id];
+
+          // Use stored type if current type is blank (strictly preserve 'element' tags)
+          if (type === '' && stored.type !== 'element') {
+            resolvedType = stored.type;
+          }
+
+          if (label === "") {
+            resolvedLabel = stored.label;
+          }
+
+          if (!attributes.hasStatusSet && stored.hasStatusSet) {
+            resolvedStatus = stored.status;
+          }
+
+          if (!attributes.hasFlagsSet && stored.hasFlagsSet) {
+            resolvedFlags = stored.flags;
+          }
+
+          // Inherit personas if none defined on the local reference override
+          if (attributes.personas.length === 0 && stored.personas && stored.personas.length > 0) {
+            resolvedPersonas = stored.personas;
+          }
+
+          // Inherit comments if none defined on the local reference override
+          if (!attributes.comment && stored.comment) {
+            resolvedComment = stored.comment;
+          }
+
+          // Inherit href if none defined locally
+          if (!attributes.href && stored.href) {
+            resolvedHref = stored.href;
+          }
+        } else if (label === "" && attributes.customIdSet) {
+          resolvedLabel = `[${attributes.id}]`;
+        }
+
+        nodes.push({
+          index,
+          indent: indentLength,
+          type: resolvedType,
+          label: resolvedLabel,
+          id: attributes.id,
+          hasCustomId: hasCustomId,
+          status: resolvedStatus,
+          flags: resolvedFlags,
+          personas: resolvedPersonas,
+          comment: resolvedComment,
+          href: resolvedHref,
+          lineStart: lineOffsets[index].start,
+          lineEnd: lineOffsets[index].end,
+          hidden: true, // Default to true so collapsed branches do not leak undefined rendering parameters
+          children: [],
+          parent: null
+        });
+      });
+
+      if (parseError) {
+        showError(parseError);
+        return;
+      }
+
+      hideError();
+
+      // Build hierarchical structure tree
+      const rootNodes = [];
+      const stack = [];
+
+      nodes.forEach(node => {
+        while (stack.length > 0 && stack[stack.length - 1].indent >= node.indent) {
+          stack.pop();
+        }
+
+        if (stack.length === 0) {
+          node.indexInParent = rootNodes.length;
+          rootNodes.push(node);
+        } else {
+          const parent = stack[stack.length - 1];
+          node.indexInParent = parent.children.length;
+          parent.children.push(node);
+          node.parent = parent;
+        }
+        stack.push(node);
+      });
+
+      // Generate stable recursive paths IDs
+      rootNodes.forEach((root, idx) => {
+        root.indexInParent = idx;
+        assignPaths(root, "");
+      });
+
+      // Clean up deleted node selection
+      activeNodes = nodes;
+      const selectExists = activeNodes.some(n => n.pathId === selectedNodePathId);
+      if (!selectExists) {
+        selectedNodePathId = null;
+      }
+
+      // Draw the Diagram tree
+      renderTree(rootNodes);
+      populateInspector();
+    }
+
+    // --- Dynamic Persona Dropdown Manager ---
+    function updatePersonaDropdown(personasSet) {
+      const card = document.getElementById('persona-filter-card');
+      const select = document.getElementById('personaSelect');
+      
+      if (!select) return;
+      if (personasSet.size === 0) {
+        if (card) card.classList.add('hidden');
+        return;
+      }
+      
+      if (card) card.classList.remove('hidden');
+      const previousSelection = selectedPersona;
+      
+      select.innerHTML = '<option value="all">👥 Show All Personas</option>';
+      personasSet.forEach(persona => {
+        const option = document.createElement('option');
+        option.value = persona;
+        option.textContent = `👤 ${persona}`;
+        if (persona === previousSelection) {
+          option.selected = true;
+        }
+        select.appendChild(option);
+      });
+
+      if (previousSelection !== 'all' && !personasSet.has(previousSelection)) {
+        selectedPersona = 'all';
+      }
+    }
+
+    function setPersonaFilter(value) {
+      selectedPersona = value;
+      parseAndRender();
+    }
+
+    // --- Layout & Rendering Algorithm ---
+    function renderTree(roots) {
+      const gBranches = document.getElementById('tree-branches');
+      const gNodes = document.getElementById('tree-nodes');
+      const gCrossConnections = document.getElementById('cross-connections');
+      const gNavConnections = document.getElementById('nav-connections');
+
+      if (!gBranches || !gNodes || !gCrossConnections || !gNavConnections) return;
+
+      // Clear layers
+      gBranches.innerHTML = '';
+      gNodes.innerHTML = '';
+      gCrossConnections.innerHTML = '';
+      gNavConnections.innerHTML = '';
+
+      if (roots.length === 0) return;
+
+      // Track layouts
+      const leafTracker = { count: 0 };
+      
+      // Calculate coordinates dynamically respecting expanded/collapsed and persona states
+      roots.forEach(root => {
+        assignPositions(root, 0, leafTracker);
+      });
+
+      // Render hierarchical connectors/branches
+      roots.forEach(root => {
+        drawBranches(root, gBranches);
+      });
+
+      // Render physical interactive cards (filtering out hidden ones)
+      activeNodes.forEach(node => {
+        if (!node.hidden) {
+          drawNodeCard(node, gNodes);
+        }
+      });
+
+      // Find and Render cross connection links between reusable fields of same ID
+      drawSharedConnections(gCrossConnections);
+
+      // Find and Render navigation pointer links (href pointers)
+      drawNavigationConnections(gNavConnections);
+
+      // Dynamically adapt global expand/collapse tooltips
+      const btnExpand = document.getElementById('btn-global-expand');
+      const btnCollapse = document.getElementById('btn-global-collapse');
+      if (btnExpand && btnCollapse) {
+        if (selectedNodePathId) {
+          const selectedNode = activeNodes.find(n => n.pathId === selectedNodePathId);
+          const label = selectedNode ? `"${selectedNode.label}"` : 'Selected Element';
+          btnExpand.setAttribute('title', `Expand Selected Branch: ${label}`);
+          btnCollapse.setAttribute('title', `Collapse Selected Branch: ${label}`);
+          btnExpand.classList.add('text-indigo-500', 'dark:text-indigo-400');
+          btnCollapse.classList.add('text-indigo-500', 'dark:text-indigo-400');
+        } else {
+          btnExpand.setAttribute('title', 'Expand All (Whole Model)');
+          btnCollapse.setAttribute('title', 'Collapse All (Whole Model)');
+          btnExpand.classList.remove('text-indigo-500', 'dark:text-indigo-400');
+          btnCollapse.classList.remove('text-indigo-500', 'dark:text-indigo-400');
+        }
+      }
+    }
+
+    // Positioning algorithm - optimized to prevent trailing hidden elements from counting as visible leaves
+    // Packed extremely close together to offer compact layout sizing!
+    function assignPositions(node, depth, tracker) {
+      // 1. If an ancestor is collapsed, or this node doesn't match active personas, flag as hidden
+      if (isNodeHidden(node) || !matchesSelectedPersona(node)) {
+        node.hidden = true;
+        return;
+      }
+      node.hidden = false;
+      node.depth = depth;
+
+      // 2. Identify visible children that match both the selected Persona and are not collapsed
+      const visibleChildrenByPersona = node.children.filter(child => matchesSelectedPersona(child));
+      const hasVisibleChildren = visibleChildrenByPersona.length > 0 && !collapsedPaths.has(node.pathId);
+
+      // Card Dimensions: Page and Group are slightly larger (60px), leaves are very slim (44px). Width is 220px.
+      node.width = 220;
+      node.height = (node.type === 'page' || node.type === 'group' || node.type === 'field group' || node.type === 'fieldgroup') ? 60 : 44;
+
+      if (!hasVisibleChildren) {
+        // If node has no visible child branches (or is collapsed), it acts as a visual leaf terminal
+        node.leafIndex = tracker.count;
+        tracker.count += 1;
+
+        if (orientation === 'horizontal') {
+          node.x = depth * 270 + 50;
+          node.y = node.leafIndex * 65 + 40; // Reduced vertical gap from 95 to 65 for tight leaf layout!
+        } else {
+          node.x = node.leafIndex * 240 + 50;
+          node.y = depth * 110 + 40; // Reduced horizontal step height from 140 to 110!
+        }
+      } else {
+        // Recursively position active child paths ONLY
+        node.children.forEach(child => {
+          assignPositions(child, depth + 1, tracker);
+        });
+
+        // 3. Center this node precisely between its VISIBLE child cards
+        const visibleChildren = node.children.filter(c => !c.hidden);
+        if (visibleChildren.length > 0) {
+          const firstChild = visibleChildren[0];
+          const lastChild = visibleChildren[visibleChildren.length - 1];
+
+          if (orientation === 'horizontal') {
+            node.x = depth * 270 + 50;
+            node.y = (firstChild.y + lastChild.y) / 2;
+          } else {
+            node.x = (firstChild.x + lastChild.x) / 2;
+            node.y = depth * 110 + 40;
+          }
+        } else {
+          // Fallback if children calculated as hidden during recursive resolution
+          node.leafIndex = tracker.count;
+          tracker.count += 1;
+          if (orientation === 'horizontal') {
+            node.x = depth * 270 + 50;
+            node.y = node.leafIndex * 65 + 40;
+          } else {
+            node.x = node.leafIndex * 240 + 50;
+            node.y = depth * 110 + 40;
+          }
+        }
+      }
+    }
+
+    // Draws hierarchical layout branch connectors
+    function drawBranches(node, svgGroup) {
+      if (node.hidden || collapsedPaths.has(node.pathId)) return;
+
+      node.children.forEach(child => {
+        if (child.hidden) return;
+        
+        let pathData = '';
+        if (orientation === 'horizontal') {
+          const startX = node.x + node.width;
+          const startY = node.y + (node.height / 2);
+          const endX = child.x;
+          const endY = child.y + (child.height / 2);
+          const cpX1 = startX + 40;
+          const cpX2 = endX - 40;
+          pathData = `M ${startX} ${startY} C ${cpX1} ${startY}, ${cpX2} ${endY}, ${endX} ${endY}`;
+        } else {
+          const startX = node.x + (node.width / 2);
+          const startY = node.y + node.height;
+          const endX = child.x + (child.width / 2);
+          const endY = child.y;
+          const cpY1 = startY + 25;
+          const cpY2 = endY - 25;
+          pathData = `M ${startX} ${startY} C ${startX} ${cpY1}, ${endX} ${cpY2}, ${endX} ${endY}`;
+        }
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', pathData);
+        path.setAttribute('class', 'stroke-slate-300 dark:stroke-slate-600 fill-none transition-all');
+        path.setAttribute('stroke-width', '1.5');
+        path.setAttribute('marker-end', document.documentElement.classList.contains('dark') ? 'url(#arrow-dark)' : 'url(#arrow)');
+        svgGroup.appendChild(path);
+
+        drawBranches(child, svgGroup);
+      });
+    }
+
+    // Toggle Collapse of parent node
+    function toggleNodeCollapse(pathId) {
+      if (collapsedPaths.has(pathId)) {
+        collapsedPaths.delete(pathId);
+      } else {
+        collapsedPaths.add(pathId);
+      }
+      parseAndRender();
+    }
+
+    // Pan viewport smoothly to focus on an arbitrary Node ID string
+    function scrollToNodeId(targetId) {
+      if (!targetId) return;
+      const target = activeNodes.find(n => n.id === targetId && !n.hidden);
+      if (target) {
+        centerOnNode(target);
+        selectNode(target.pathId);
+      }
+    }
+
+    // Creates interactive styled SVG visual boxes for tree nodes
+    function drawNodeCard(node, svgGroup) {
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('transform', `translate(${node.x}, ${node.y})`);
+      g.setAttribute('class', 'group node-transition');
+      g.setAttribute('id', `dom-node-${node.index}`);
+
+      // Setup solid opaque colors based on node type
+      let typeBg = 'bg-white dark:bg-slate-800';
+      let typeBorder = 'border-slate-200 dark:border-slate-700';
+      let typeIcon = 'layers';
+      let accentBar = 'bg-indigo-500';
+
+      const isStructural = (node.type === 'page' || node.type === 'group' || node.type === 'field group' || node.type === 'fieldgroup');
+
+      if (node.type === 'page') {
+        typeBg = 'bg-indigo-50 dark:bg-indigo-950';
+        typeBorder = 'border-indigo-200 dark:border-indigo-900';
+        typeIcon = 'web';
+        accentBar = 'bg-indigo-600';
+      } else if (node.type === 'group' || node.type === 'field group' || node.type === 'fieldgroup') {
+        typeBg = 'bg-amber-50 dark:bg-amber-950';
+        typeBorder = 'border-amber-200 dark:border-amber-900';
+        typeIcon = 'folder';
+        accentBar = 'bg-amber-500';
+      } else if (node.type === 'element') {
+        typeBg = 'bg-slate-100 dark:bg-slate-800';
+        typeBorder = 'border-slate-300 dark:border-slate-600 border-dashed border-2';
+        typeIcon = 'widgets';
+        accentBar = 'bg-slate-400 dark:bg-slate-500';
+      } else {
+        typeBg = 'bg-white dark:bg-slate-800';
+        typeBorder = 'border-slate-200 dark:border-slate-700';
+        accentBar = 'bg-sky-400';
+        
+        switch (node.type) {
+          case 'input': typeIcon = 'text_fields'; break;
+          case 'select': typeIcon = 'arrow_drop_down_circle'; break;
+          case 'calendar': typeIcon = 'calendar_month'; break;
+          case 'textarea': typeIcon = 'notes'; break;
+          case 'button': typeIcon = 'smart_button'; accentBar = 'bg-purple-500'; break;
+          case 'checkbox': typeIcon = 'check_box'; break;
+          case 'radio': typeIcon = 'radio_button_checked'; break;
+          default: typeIcon = 'description';
+        }
+      }
+
+      // Handle custom statuses
+      let statusStyle = '';
+      let badgeHtml = '';
+      if (node.status && node.status !== 'default') {
+        switch (node.status) {
+          case 'success':
+            statusStyle = 'ring-2 ring-emerald-500/50 shadow-md shadow-emerald-500/5';
+            badgeHtml = `<span class="bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase">Success</span>`;
+            break;
+          case 'warning':
+            statusStyle = 'ring-2 ring-amber-500/50 shadow-md shadow-emerald-500/5';
+            badgeHtml = `<span class="bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase">Warning</span>`;
+            break;
+          case 'danger':
+            statusStyle = 'ring-2 ring-rose-500/50 shadow-md shadow-rose-500/5';
+            badgeHtml = `<span class="bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase">Danger</span>`;
+            break;
+          case 'error':
+            statusStyle = 'ring-2 ring-red-500/60 shadow-md shadow-red-500/10 dark:ring-red-500/80';
+            badgeHtml = `<span class="bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">Error</span>`;
+            break;
+          case 'info':
+            statusStyle = 'ring-2 ring-sky-500/50 shadow-md shadow-sky-500/5';
+            badgeHtml = `<span class="bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase">Info</span>`;
+            break;
+          case 'draft':
+            statusStyle = 'opacity-65 border-dashed border-2';
+            badgeHtml = `<span class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase">Draft</span>`;
+            break;
+        }
+      }
+
+      // Selection override styling
+      const isSelected = (selectedNodePathId === node.pathId);
+      if (isSelected) {
+        statusStyle += ' ring-4 ring-brand-500/80 shadow-indigo-500/10 shadow-xl z-40';
+      }
+
+      const totalInstances = activeNodes.filter(n => n.id === node.id).length;
+      const isReused = totalInstances > 1 && node.hasCustomId;
+      const sharedIndicatorHtml = isReused 
+        ? `<div class="flex items-center space-x-0.5 text-indigo-500 dark:text-indigo-400 font-semibold text-[9px]" title="This unique field is reused across your tree.">
+             <span class="material-symbols-outlined text-[14px]">link</span>
+             <span>x${totalInstances}</span>
+           </div>`
+        : '';
+
+      // Inline Expand / Collapse button on parent nodes
+      let collapseBtnHtml = '';
+      if (node.children.length > 0) {
+        const isCollapsed = collapsedPaths.has(node.pathId);
+        collapseBtnHtml = `
+          <button onclick="event.stopPropagation(); toggleNodeCollapse('${node.pathId}')" 
+                  class="p-0.5 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition-all flex items-center justify-center text-slate-500 dark:text-slate-300 shrink-0" 
+                  title="${isCollapsed ? 'Expand Children' : 'Collapse Children'}">
+            <span class="material-symbols-outlined text-[16px]">${isCollapsed ? 'expand_content' : 'collapse_content'}</span>
+          </button>
+        `;
+      }
+
+      // Flags pill badges
+      let flagsHtml = '';
+      if (node.flags && node.flags.length > 0) {
+        flagsHtml = `<div class="flex flex-wrap gap-1">
+          ${node.flags.map(f => `<span class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1 py-0.5 rounded text-[8px] font-medium tracking-wide font-sans">#${f}</span>`).join('')}
+        </div>`;
+      }
+
+      // Render personas limit constraints directly in card body
+      let personasHtml = '';
+      if (node.personas && node.personas.length > 0) {
+        personasHtml = `
+          <div class="flex items-center space-x-1 text-[8px] text-indigo-500 dark:text-indigo-400 font-bold truncate max-w-[70px]" title="Access Persona: ${node.personas.join(', ')}">
+            <span class="material-symbols-outlined text-[10px] shrink-0 mr-0.5">person</span>
+            <span class="truncate">${node.personas.join(', ')}</span>
+          </div>
+        `;
+      }
+
+      // Display Helper Info Icon with hover tooltip when comments exist
+      let commentHtml = '';
+      if (node.comment) {
+        const escapedComment = node.comment.replace(/"/g, '&quot;');
+        commentHtml = `
+          <span class="material-symbols-outlined text-[14px] text-slate-400 dark:text-slate-500 hover:text-indigo-500 dark:hover:text-indigo-400 shrink-0 cursor-help select-none transition-colors" 
+                title="${escapedComment}">
+            info
+          </span>
+        `;
+      }
+
+      // Navigation href quick jump button on card
+      let hrefLinkHtml = '';
+      if (node.href) {
+        hrefLinkHtml = `
+          <button onclick="event.stopPropagation(); scrollToNodeId('${node.href}')" 
+                  class="p-0.5 rounded bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900 transition-colors flex items-center justify-center shrink-0" 
+                  title="Follow navigation path to: ${node.href}">
+            <span class="material-symbols-outlined text-[13px]">arrow_right_alt</span>
+          </button>
+        `;
+      }
+
+      const foreignObject = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
+      foreignObject.setAttribute('width', String(node.width));
+      foreignObject.setAttribute('height', String(node.height + 25)); // Provide spacing padding at bottom
+
+      // Design distinct layout profiles based on Structural nodes (Page/Group) vs Slim Leaf nodes
+      let cardInnerHtml = '';
+
+      if (isStructural) {
+        // High Contrast, robust 60px height layout for Page/Group nodes
+        cardInnerHtml = `
+          <div xmlns="http://www.w3.org/1999/xhtml" class="p-2 rounded-xl border ${typeBorder} ${typeBg} ${statusStyle} select-none shadow-sm relative group-hover:shadow-lg dark:shadow-slate-950/20 cursor-pointer" 
+               style="height: 60px; display: flex; flex-direction: column; justify-content: space-between;"
+               onclick="handleNodeClick(event, '${node.pathId}', ${node.lineStart}, ${node.lineEnd})"
+               onmouseenter="handleNodeHover('${node.id}', true)" 
+               onmouseleave="handleNodeHover('${node.id}', false)">
+            
+            <div class="absolute left-0 top-2 bottom-2 w-1 rounded-r-md ${accentBar}"></div>
+            
+            <div class="flex items-start justify-between w-full overflow-hidden">
+              <div class="flex flex-col truncate pr-2 w-full">
+                <div class="flex items-center space-x-1.5 truncate w-full">
+                  <span class="material-symbols-outlined text-[15px] text-slate-500">${typeIcon}</span>
+                  <span class="font-bold text-[10px] truncate text-slate-800 dark:text-white" title="${node.label}">${node.label}</span>
+                  ${commentHtml}
+                  ${hrefLinkHtml}
+                </div>
+                ${personasHtml}
+              </div>
+              ${sharedIndicatorHtml}
+            </div>
+
+            <div class="flex items-center justify-between mt-auto w-full">
+              <span class="text-[8px] font-mono font-medium text-slate-400 dark:text-slate-500 uppercase">${node.type}</span>
+              <div class="flex items-center space-x-1.5 font-sans">
+                ${badgeHtml}
+                ${collapseBtnHtml}
+              </div>
+            </div>
+            
+            <!-- Flags Overlay positioned cleanly at bottom -->
+            ${flagsHtml ? `<div class="absolute -bottom-3 left-2 right-2">${flagsHtml}</div>` : ''}
+          </div>
+        `;
+      } else {
+        // Highly compacted, slim 44px single-row style layout for Leaf nodes
+        cardInnerHtml = `
+          <div xmlns="http://www.w3.org/1999/xhtml" class="p-2 rounded-lg border ${typeBorder} ${typeBg} ${statusStyle} select-none shadow-sm relative group-hover:shadow-lg dark:shadow-slate-950/20 cursor-pointer animate-none" 
+               style="height: 44px; display: flex; align-items: center;"
+               onclick="handleNodeClick(event, '${node.pathId}', ${node.lineStart}, ${node.lineEnd})"
+               onmouseenter="handleNodeHover('${node.id}', true)" 
+               onmouseleave="handleNodeHover('${node.id}', false)">
+            
+            <div class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md ${accentBar}"></div>
+            
+            <div class="flex items-center justify-between w-full overflow-hidden">
+              <!-- Label, Icon and comments -->
+              <div class="flex items-center space-x-1.5 truncate pr-1">
+                <span class="material-symbols-outlined text-[14px] text-slate-500 shrink-0">${typeIcon}</span>
+                <span class="font-bold text-[10px] truncate text-slate-800 dark:text-white" title="${node.label}">${node.label}</span>
+                ${commentHtml}
+                ${hrefLinkHtml}
+              </div>
+
+              <!-- Badges and controls aligned cleanly on right -->
+              <div class="flex items-center space-x-1 shrink-0 font-sans">
+                ${badgeHtml}
+                ${personasHtml}
+                ${collapseBtnHtml}
+                ${sharedIndicatorHtml}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      foreignObject.innerHTML = cardInnerHtml;
+      g.appendChild(foreignObject);
+      svgGroup.appendChild(g);
+    }
+
+    // --- Draw Reused Instance Connections (Arcs linking nodes with identical Custom IDs) ---
+    function drawSharedConnections(svgGroup) {
+      if (!showConnections) return;
+
+      const sharedGroups = {};
+      activeNodes.forEach(node => {
+        // Only map elements that are currently visible/not hidden
+        if (node.hasCustomId && !node.hidden) {
+          if (!sharedGroups[node.id]) {
+            sharedGroups[node.id] = [];
+          }
+          sharedGroups[node.id].push(node);
+        }
+      });
+
+      let reusableLinesCount = 0;
+
+      Object.keys(sharedGroups).forEach(id => {
+        const instances = sharedGroups[id];
+        if (instances.length <= 1) return;
+
+        reusableLinesCount += (instances.length - 1);
+
+        if (!idColorCache[id]) {
+          idColorCache[id] = getBeautifulAccentColor(Object.keys(idColorCache).length);
+        }
+        const strokeColor = idColorCache[id];
+
+        const isCurrentlyHighlighted = (hoveredNodeId === id);
+        const strokeOpacity = isCurrentlyHighlighted ? '0.95' : '0.4';
+        const strokeWidth = isCurrentlyHighlighted ? '3.5' : '1.8';
+        const lineStyle = isCurrentlyHighlighted ? 'filter: url(#glow);' : '';
+
+        for (let i = 0; i < instances.length - 1; i++) {
+          const fromNode = instances[i];
+          const toNode = instances[i + 1];
+
+          let startX, startY, endX, endY, cp1X, cp1Y, cp2X, cp2Y;
+
+          if (orientation === 'horizontal') {
+            startX = fromNode.x + fromNode.width; 
+            startY = fromNode.y + (fromNode.height / 2);
+            endX = toNode.x;
+            endY = toNode.y + (toNode.height / 2);
+
+            const deltaX = Math.abs(endX - startX);
+            const deltaY = Math.abs(endY - startY);
+            cp1X = startX + deltaX * 0.5 + 40;
+            cp1Y = startY + (endY > startY ? -20 : 20);
+            cp2X = endX - deltaX * 0.5 - 40;
+            cp2Y = endY + (endY > startY ? 20 : -20);
+          } else {
+            startX = fromNode.x + (fromNode.width / 2);
+            startY = fromNode.y + fromNode.height;
+            endX = toNode.x + (toNode.width / 2);
+            endY = toNode.y;
+
+            const deltaY = Math.abs(endY - startY);
+            cp1X = startX + (endX > startX ? 40 : -40);
+            cp1Y = startY + deltaY * 0.5 + 30;
+            cp2X = endX + (endX > startX ? -40 : 40);
+            cp2Y = endY - deltaY * 0.5 - 30;
+          }
+
+          const pathData = `M ${startX} ${startY} C ${cp1X} ${cp1Y}, ${cp2X} ${cp2Y}, ${endX} ${endY}`;
+
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', pathData);
+          path.setAttribute('class', 'connection-line fill-none');
+          path.setAttribute('stroke', strokeColor);
+          path.setAttribute('stroke-width', strokeWidth);
+          path.setAttribute('stroke-dasharray', isCurrentlyHighlighted ? '6,3' : '5,5');
+          path.setAttribute('style', `opacity: ${strokeOpacity}; ${lineStyle}`);
+          
+          path.addEventListener('mouseenter', () => handleNodeHover(id, true));
+          path.addEventListener('mouseleave', () => handleNodeHover(id, false));
+
+          svgGroup.appendChild(path);
+        }
+      });
+
+      // Safely update the reused badge metrics only if it exists in the DOM
+      const reusedBadge = document.getElementById('reused-count-badge');
+      if (reusedBadge) {
+        reusedBadge.innerText = `${reusableLinesCount} shared links`;
+      }
+    }
+
+    // --- Draw Navigation Link Connections (Teledotted pointers derived from href) ---
+    function drawNavigationConnections(svgGroup) {
+      activeNodes.forEach(node => {
+        if (!node.href || node.hidden) return;
+
+        const targetNode = activeNodes.find(n => n.id === node.href && !n.hidden);
+        if (!targetNode) return;
+
+        let startX, startY, endX, endY, cp1X, cp1Y, cp2X, cp2Y;
+
+        if (orientation === 'horizontal') {
+          // Exit from right edge of source card
+          startX = node.x + node.width;
+          startY = node.y + (node.height / 2);
+          // Entry in left edge of target card
+          endX = targetNode.x;
+          endY = targetNode.y + (targetNode.height / 2);
+
+          const deltaX = Math.abs(endX - startX);
+          cp1X = startX + deltaX * 0.4 + 20;
+          cp1Y = startY + (endY > startY ? 40 : -40);
+          cp2X = endX - deltaX * 0.4 - 20;
+          cp2Y = endY + (endY > startY ? -40 : 40);
+        } else {
+          // Exit bottom of source card
+          startX = node.x + (node.width / 2);
+          startY = node.y + node.height;
+          // Entry top of target card
+          endX = targetNode.x + (targetNode.width / 2);
+          endY = targetNode.y;
+
+          const deltaY = Math.abs(endY - startY);
+          cp1X = startX + (endX > startX ? 50 : -50);
+          cp1Y = startY + deltaY * 0.4 + 20;
+          cp2X = endX + (endX > startX ? -50 : 50);
+          cp2Y = endY - deltaY * 0.4 - 20;
+        }
+
+        const pathData = `M ${startX} ${startY} C ${cp1X} ${cp1Y}, ${cp2X} ${cp2Y}, ${endX} ${endY}`;
+
+        // Create elegant styled dotted curve with dedicated nav arrowhead
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', pathData);
+        path.setAttribute('class', 'stroke-sky-500 dark:stroke-sky-400 fill-none opacity-70 hover:opacity-100 transition-opacity');
+        path.setAttribute('stroke-width', '1.8');
+        path.setAttribute('stroke-dasharray', '3,3');
+        path.setAttribute('marker-end', 'url(#nav-arrow)');
+        
+        svgGroup.appendChild(path);
+      });
+    }
+
+    // --- Hover Highlight System (Smooth ring outlines without structural jittering) ---
+    function handleNodeHover(nodeId, isEntering) {
+      if (!showConnections) return;
+      hoveredNodeId = isEntering ? nodeId : null;
+
+      activeNodes.forEach(node => {
+        const cardDom = document.getElementById('dom-node-' + node.index);
+        if (!cardDom) return;
+
+        if (isEntering && node.id === nodeId && node.hasCustomId) {
+          cardDom.classList.add('z-50');
+          const innerCard = cardDom.querySelector('div');
+          if (innerCard) {
+            innerCard.classList.add('ring-4', 'ring-brand-500/50', 'dark:ring-indigo-400/80');
+          }
+        } else {
+          const isSelected = (selectedNodePathId === node.pathId);
+          cardDom.classList.remove('z-50');
+          if (!isSelected) {
+            const innerCard = cardDom.querySelector('div');
+            if (innerCard) {
+              innerCard.classList.remove('ring-4', 'ring-brand-500/50', 'dark:ring-indigo-400/80');
+            }
+          }
+        }
+      });
+
+      const gCrossConnections = document.getElementById('cross-connections');
+      if (gCrossConnections) {
+        gCrossConnections.innerHTML = '';
+        drawSharedConnections(gCrossConnections);
+      }
+    }
+
+    // --- Global Expand/Collapse Controllers ---
+    function handleGlobalCollapse() {
+      if (selectedNodePathId) {
+        collapsedPaths.add(selectedNodePathId);
+      } else {
+        activeNodes.forEach(node => {
+          if (node.children && node.children.length > 0) {
+            collapsedPaths.add(node.pathId);
+          }
+        });
+      }
+      parseAndRender();
+    }
+
+    function handleGlobalExpand() {
+      if (selectedNodePathId) {
+        collapsedPaths.delete(selectedNodePathId);
+      } else {
+        collapsedPaths.clear();
+      }
+      parseAndRender();
+    }
+
+    // --- Helpers & Visual Utilities ---
+    function getBeautifulAccentColor(index) {
+      const palette = [
+        '#6366f1', // Indigo
+        '#ec4899', // Pink
+        '#10b981', // Emerald
+        '#f59e0b', // Amber
+        '#8b5cf6', // Violet
+        '#ef4444', // Red
+        '#06b6d4', // Cyan
+        '#f97316', // Orange
+      ];
+      return palette[index % palette.length];
+    }
+
+    let typingTimer;
+    function handleInputChange() {
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(parseAndRender, 250);
+    }
+
+    // Insert structural elements on click
+    function insertTemplate(type) {
+      const selectionStart = syntaxInput.selectionStart;
+      const selectionEnd = syntaxInput.selectionEnd;
+      const text = syntaxInput.value;
+
+      let codeSnippet = '';
+      switch (type) {
+        case 'title':
+          codeSnippet = 'title: My New Site Architecture\n';
+          break;
+        case 'persona':
+          codeSnippet = 'persona: Admin\n';
+          break;
+        case 'element':
+          codeSnippet = '\nelement: Master Field Name {id: field_id, flags: [reusable], comment: "Short guide description"}';
+          break;
+        case 'page':
+          codeSnippet = '\npage: New View Screen';
+          break;
+        case 'group':
+          codeSnippet = '\n  group: New Section Area';
+          break;
+        case 'field':
+          codeSnippet = '\n    input: {id: field_id}';
+          break;
+        case 'button':
+          codeSnippet = '\n    button: Submit Action {id: submit_id, status: success}';
+          break;
+      }
+
+      syntaxInput.value = text.slice(0, selectionStart) + codeSnippet + text.slice(selectionEnd);
+      syntaxInput.focus();
+      parseAndRender();
+    }
+
+    function clearEditor() {
+      syntaxInput.value = '';
+      selectedNodePathId = null;
+      collapsedPaths.clear();
+      selectedPersona = 'all';
+      parseAndRender();
+    }
+
+    // loadTemplate function
+    function loadTemplate(key) {
+      if (templates[key]) {
+        syntaxInput.value = templates[key];
+        selectedNodePathId = null;
+        collapsedPaths.clear();
+        selectedPersona = 'all';
+        parseAndRender();
+        resetZoom();
+      }
+    }
+
+    // --- Orientation Switch ---
+    function setOrientation(orient) {
+      orientation = orient;
+
+      if (orient === 'horizontal') {
+        if (btnOrientHorizontal) btnOrientHorizontal.className = "px-2.5 py-1 rounded text-xs font-semibold flex items-center space-x-1 transition-all bg-white dark:bg-slate-600 shadow-sm text-brand-600 dark:text-white";
+        if (btnOrientVertical) btnOrientVertical.className = "px-2.5 py-1 rounded text-xs font-semibold flex items-center space-x-1 transition-all text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white";
+      } else {
+        if (btnOrientVertical) btnOrientVertical.className = "px-2.5 py-1 rounded text-xs font-semibold flex items-center space-x-1 transition-all bg-white dark:bg-slate-600 shadow-sm text-brand-600 dark:text-white";
+        if (btnOrientHorizontal) btnOrientHorizontal.className = "px-2.5 py-1 rounded text-xs font-semibold flex items-center space-x-1 transition-all text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white";
+      }
+
+      parseAndRender();
+    }
+
+    // --- Connection Tracer lines toggle ---
+    function toggleConnections() {
+      showConnections = !showConnections;
+      const dot = document.getElementById('connections-active-dot');
+      if (showConnections) {
+        if (btnToggleConnections) btnToggleConnections.className = "p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-indigo-50 dark:bg-slate-655 hover:bg-indigo-100 dark:hover:bg-slate-500 text-indigo-600 dark:text-white relative transition-colors";
+        if (dot) dot.classList.remove('hidden');
+      } else {
+        if (btnToggleConnections) btnToggleConnections.className = "p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400 relative transition-colors";
+        if (dot) dot.classList.add('hidden');
+      }
+      parseAndRender();
+    }
+
+    // --- Set Zoom Level directly from dropdown selector ---
+    function setZoomFromMenu(val) {
+      zoomLevel = parseFloat(val);
+      applyTransform();
+    }
+
+    // --- Synchronize the Dropdown value with the active zoom level ---
+    function updateZoomSelect() {
+      const select = document.getElementById('zoomSelect');
+      if (!select) return;
+      const pct = Math.round(zoomLevel * 100);
+      select.value = zoomLevel.toFixed(2);
+      
+      let found = false;
+      for (let i = 0; i < select.options.length; i++) {
+        if (parseFloat(select.options[i].value).toFixed(2) === zoomLevel.toFixed(2)) {
+          select.selectedIndex = i;
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        let customOpt = document.getElementById('zoom-custom-opt');
+        if (!customOpt) {
+          customOpt = document.createElement('option');
+          customOpt.id = 'zoom-custom-opt';
+          select.appendChild(customOpt);
+        }
+        customOpt.value = zoomLevel.toFixed(2);
+        customOpt.textContent = `${pct}%`;
+        select.value = zoomLevel.toFixed(2);
+      }
+    }
+
+    function showError(msg) {
+      if (errorMessage) errorMessage.innerText = msg;
+      if (errorBanner) errorBanner.classList.remove('hidden');
+      const badge = document.getElementById('parsing-badge');
+      if (badge) {
+        badge.className = "px-2 py-0.5 rounded-full text-[10px] font-medium bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 flex items-center";
+        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1"></span> Error`;
+      }
+    }
+
+    function hideError() {
+      if (errorBanner) errorBanner.classList.add('hidden');
+      const badge = document.getElementById('parsing-badge');
+      if (badge) {
+        badge.className = "px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 flex items-center";
+        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1 animate-pulse"></span> Sync Active`;
+      }
+    }
+
+    // --- Infinite Canvas Zoom & Pan Management ---
+    function startPan(e) {
+      if (e.target.closest('foreignObject')) return;
+      
+      // Clear selection if clicking on the blank background of the canvas
+      if (selectedNodePathId !== null) {
+        selectNode(null);
+      }
+
+      isDragging = true;
+      startX = e.clientX - panX;
+      startY = e.clientY - panY;
+    }
+
+    function dragPan(e) {
+      if (!isDragging) return;
+      panX = e.clientX - startX;
+      panY = e.clientY - startY;
+      applyTransform();
+    }
+
+    function endPan() {
+      isDragging = false;
+    }
+
+    function handleWheel(e) {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) {
+        // Zoom behavior with modifier key
+        const zoomFactor = 1.1;
+        if (e.deltaY < 0) {
+          zoomLevel *= zoomFactor;
+        } else {
+          zoomLevel /= zoomFactor;
+        }
+        zoomLevel = Math.max(0.15, Math.min(3.0, zoomLevel));
+      } else {
+        // Natural viewport panning / scrolling
+        panX -= e.deltaX;
+        panY -= e.deltaY;
+      }
+      applyTransform();
+    }
+
+    function zoomIn() {
+      zoomLevel = Math.min(3.0, zoomLevel * 1.25);
+      applyTransform();
+    }
+
+    function zoomOut() {
+      zoomLevel = Math.max(0.18, zoomLevel / 1.25);
+      applyTransform();
+    }
+
+    function resetZoom() {
+      zoomLevel = 0.85;
+      panX = 30;
+      panY = orientation === 'horizontal' ? 60 : 40;
+      applyTransform();
+    }
+
+    function applyTransform() {
+      if (viewport) viewport.setAttribute('transform', `translate(${panX}, ${panY}) scale(${zoomLevel})`);
+      updateZoomSelect();
+    }
+
+    // --- Export as Standard SVG file ---
+    function exportToSVG() {
+      if (!viewport) return;
+      const bbox = viewport.getBBox();
+      const padding = 50;
+
+      const exportSvg = diagramSvg.cloneNode(true);
+      exportSvg.setAttribute('viewBox', `${bbox.x - padding} ${bbox.y - padding} ${bbox.width + padding * 2} ${bbox.height + padding * 2}`);
+      exportSvg.setAttribute('width', bbox.width + padding * 2);
+      exportSvg.setAttribute('height', bbox.height + padding * 2);
+
+      const serializer = new XMLSerializer();
+      const source = serializer.serializeToString(exportSvg);
+
+      const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<?xml version="1.0" standalone="no"?>\n' + source);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = url;
+      downloadLink.download = `infoarch-ia-tree.svg`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    }
+
+    function toggleHelpModal(show) {
+      const modal = document.getElementById('helpModal');
+      if (modal) {
+        if (show) {
+          modal.classList.remove('hidden');
+        } else {
+          modal.classList.add('hidden');
+        }
+      }
+    }
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const themeIcon = document.getElementById('theme-icon');
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        if (themeIcon) themeIcon.textContent = 'dark_mode';
+      } else {
+        html.classList.add('dark');
+        if (themeIcon) themeIcon.textContent = 'light_mode';
+      }
+      parseAndRender();
+    }
+  </script>
+</body>
+</html>
