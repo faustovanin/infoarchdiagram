@@ -158,7 +158,7 @@
     <div class="grow flex flex-col md:flex-row overflow-hidden relative">
       
       <!-- Left Panel: Text Code Editor -->
-      <div class="w-full md:w-[420px] shrink-0 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col h-1/3 md:h-full z-10 font-sans">
+      <div class="w-full md:w-[420px] md:min-w-[320px] md:max-w-[70vw] shrink-0 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col h-1/3 md:h-full z-10 font-sans md:resize-x md:overflow-auto">
         <!-- Editor Header -->
         <div class="px-4 py-2 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between shrink-0">
           <span class="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase flex items-center">
@@ -174,7 +174,7 @@
         <!-- Real Code Area -->
         <div class="grow flex flex-col relative font-mono text-xs overflow-hidden">
           <!-- Textarea for input -->
-          <textarea id="syntaxInput" placeholder="# Type here or choose a snippet below..." spellcheck="false" class="w-full grow p-4 bg-slate-900 text-slate-100 border-none focus:outline-none focus:ring-0 resize-none font-mono leading-relaxed text-[11px]" oninput="handleInputChange()"></textarea>
+          <textarea id="syntaxInput" placeholder="# Type here or choose a snippet below..." spellcheck="false" class="w-full grow min-h-[220px] p-4 bg-slate-900 text-slate-100 border-none focus:outline-none focus:ring-0 resize-none font-mono leading-relaxed text-[11px]" oninput="handleInputChange()"></textarea>
           
           <!-- Sync Error Banner if any -->
           <div id="error-banner" class="hidden absolute bottom-0 left-0 right-0 bg-rose-500 text-white p-3 text-xs flex items-start space-x-2 shadow-lg transition-all duration-200">
@@ -208,6 +208,15 @@
           </button>
           <button onclick="insertTemplate('button')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center">
             <span class="w-2 h-2 rounded bg-purple-500 mr-1"></span> +Button
+          </button>
+          <button onclick="insertTemplate('decision')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center" title="Insert a VisVocab decision point">
+            <span class="w-2 h-2 rotate-45 bg-rose-400 mr-1"></span> +Decision
+          </button>
+          <button onclick="insertTemplate('branch')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center" title="Insert a conditional branch">
+            <span class="w-0 h-0 border-l-[5px] border-r-[5px] border-b-[8px] border-l-transparent border-r-transparent border-b-amber-400 mr-1"></span> +Branch
+          </button>
+          <button onclick="insertTemplate('reference')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center" title="Insert a reusable flow reference">
+            <span class="w-2 h-2 bg-violet-400 mr-1" style="clip-path: polygon(10% 0%, 90% 0%, 100% 24%, 100% 76%, 90% 100%, 10% 100%, 0% 76%, 0% 24%);"></span> +Flow Ref
           </button>
           <span class="grow"></span>
           <button onclick="clearEditor()" class="px-2 py-1 bg-rose-50 dark:bg-rose-950/30 text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded text-[10px] font-semibold" title="Clear Editor">
@@ -303,6 +312,14 @@
                       <span class="text-slate-600 dark:text-slate-300">Declares a system user persona. Generates an interactive dropdown filter on the canvas.</span>
                     </div>
                     <div class="flex items-start space-x-2.5 p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                      <span class="font-mono text-indigo-500 font-bold bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded shadow-sm shrink-0">decision: Valid?</span>
+                      <span class="text-slate-600 dark:text-slate-300">Use <strong>decision</strong>, <strong>branch</strong>, <strong>selector</strong>, <strong>cluster</strong>, <strong>flow</strong>, and <strong>reference</strong> to model conditional flow and navigation.</span>
+                    </div>
+                    <div class="flex items-start space-x-2.5 p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                      <span class="font-mono text-indigo-500 font-bold bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded shadow-sm shrink-0">condition: "yes"</span>
+                      <span class="text-slate-600 dark:text-slate-300">Add <strong>condition</strong> or <strong>action</strong> inside a child node attributes block to label its incoming connector.</span>
+                    </div>
+                    <div class="flex items-start space-x-2.5 p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                       <span class="font-mono text-indigo-500 font-bold bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded shadow-sm shrink-0">Tab Key</span>
                       <span class="text-slate-600 dark:text-slate-300">Press <strong>Tab</strong> inside the editor to cleanly indent child branches.</span>
                     </div>
@@ -312,7 +329,7 @@
                 <!-- Quick Demos / Templates -->
                 <div class="pt-2 border-t border-slate-100 dark:border-slate-700 font-sans">
                   <p class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2.5">Click to Load a Kickstart Template</p>
-                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
                     <button onclick="loadTemplate('ecom')" class="p-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-950/80 border border-indigo-100 dark:border-indigo-900/50 rounded-xl text-left transition-colors">
                       <div class="font-bold text-xs text-indigo-700 dark:text-indigo-300">🛒 Checkout Flow</div>
                       <div class="text-[10px] text-indigo-600/70 dark:text-indigo-400/70 mt-0.5">Payment steps & persona filters</div>
@@ -324,6 +341,10 @@
                     <button onclick="loadTemplate('simple')" class="p-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-950/80 border border-emerald-100 dark:border-emerald-900/50 rounded-xl text-left transition-colors">
                       <div class="font-bold text-xs text-emerald-700 dark:text-emerald-300">🌱 Simple Form</div>
                       <div class="text-[10px] text-emerald-600/70 dark:text-indigo-400/70 mt-0.5">Quick form with unique fields</div>
+                    </button>
+                    <button onclick="loadTemplate('conditional')" class="p-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-950/80 border border-rose-100 dark:border-rose-900/50 rounded-xl text-left transition-colors">
+                      <div class="font-bold text-xs text-rose-700 dark:text-rose-300">🔀 Conditional Flow</div>
+                      <div class="text-[10px] text-rose-600/70 dark:text-rose-400/70 mt-0.5">Decision points, selectors & reusable flows</div>
                     </button>
                   </div>
                 </div>
@@ -507,6 +528,29 @@ page: Homepage
               </li>
             </ul>
           </div>
+
+          <div>
+            <h4 class="font-bold text-slate-900 dark:text-white mb-2 flex items-center font-sans">
+              <span class="bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300 w-5 h-5 rounded-full inline-flex items-center justify-center text-xs mr-2 font-bold">5</span>
+              Conditional Flow Controls & Navigation Shapes
+            </h4>
+            <p class="text-xs mb-2">Use VisVocab-inspired keywords to describe decisions, conditional branches, selectors, reusable flows, and navigation handoffs. Add <code class="text-indigo-500 font-semibold font-mono">condition</code> or <code class="text-indigo-500 font-semibold font-mono">action</code> inside child node attributes to label the incoming path.</p>
+            <pre class="bg-slate-950 text-slate-100 p-3 rounded-lg text-xs leading-5">
+page: Sign In
+  decision: Credentials valid?
+    page: Dashboard {condition: "yes"}
+    branch: Recovery route {condition: "no"}
+      page: Reset Password {condition: "known email"}
+      continue: Contact Support {condition: "account locked"}
+
+flow: MFA Flow {id: mfa_flow}
+  entry: One-time code
+  selector: Delivery channel
+    page: SMS Verify {condition: "sms enabled"}
+    page: Email Verify {condition: "email enabled"}
+            </pre>
+            <p class="text-xs mt-2">Available flow keywords: <code class="text-indigo-500 font-semibold font-mono">decision</code>, <code class="text-indigo-500 font-semibold font-mono">branch</code>, <code class="text-indigo-500 font-semibold font-mono">selector</code>, <code class="text-indigo-500 font-semibold font-mono">cluster</code>, <code class="text-indigo-500 font-semibold font-mono">flow</code>, <code class="text-indigo-500 font-semibold font-mono">reference</code>, <code class="text-indigo-500 font-semibold font-mono">continue</code>, <code class="text-indigo-500 font-semibold font-mono">entry</code>, <code class="text-indigo-500 font-semibold font-mono">exit</code>, <code class="text-indigo-500 font-semibold font-mono">concurrent</code>, and <code class="text-indigo-500 font-semibold font-mono">file</code>.</p>
+          </div>
         </div>
 
         <!-- Modal Footer -->
@@ -584,7 +628,32 @@ page: Home Screen
     input: User Profile Name {id: user_input, comment: "Must match passport spelling"}
     button: Submit {status: success, personas: [Applicant]}
     button: Accept Profile {status: success, personas: [Reviewer]}
-    button: Reject Profile {status: error, personas: [Reviewer]}`
+    button: Reject Profile {status: error, personas: [Reviewer]}`,
+
+      conditional: `title: Conditional Access Journey
+persona: Member
+persona: Admin
+
+page: Sign In
+  input: Email Address
+  button: Submit Credentials {action: "start authentication"}
+  decision: Credentials valid?
+    page: Workspace Home {condition: "yes"}
+      selector: Available modules
+        page: Reports {condition: "analytics enabled"}
+        page: Billing {condition: "billing access"}
+    branch: Recovery route {condition: "no"}
+      page: Reset Password {condition: "known email"}
+      continue: Contact Support {condition: "account locked"}
+  concurrent: Notify & redirect
+    file: Audit Log {action: "write security event"}
+    reference: MFA Flow {id: mfa_reference, href: mfa_flow, action: "challenge required"}
+
+flow: MFA Flow {id: mfa_flow}
+  entry: One-time code
+  decision: Code accepted?
+    exit: Resume sign in {condition: "verified"}
+    page: Retry MFA {condition: "failed"}`
     };
 
     // --- State Variables ---
@@ -718,6 +787,25 @@ page: Home Screen
     // --- Tab key and Shift+Tab handler ---
     function setupTabKeyHandler() {
       syntaxInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          e.preventDefault();
+
+          const start = this.selectionStart;
+          const end = this.selectionEnd;
+          const value = this.value;
+          const beforeCursor = value.substring(0, start);
+          const lineStartPos = beforeCursor.lastIndexOf('\n') + 1;
+          const currentLine = value.substring(lineStartPos, start);
+          const leadingWhitespace = currentLine.match(/^\s*/)?.[0] || '';
+          const insertion = `\n${leadingWhitespace}`;
+
+          this.value = value.substring(0, start) + insertion + value.substring(end);
+          this.selectionStart = this.selectionEnd = start + insertion.length;
+
+          parseAndRender();
+          return;
+        }
+
         if (e.key === 'Tab') {
           e.preventDefault(); // Stop focus navigation
           
@@ -795,6 +883,196 @@ page: Home Screen
       });
     }
 
+    function normalizePersonaValue(value) {
+      if (!value) return '';
+
+      let normalized = String(value).trim();
+      if (
+        (normalized.startsWith('"') && normalized.endsWith('"')) ||
+        (normalized.startsWith("'") && normalized.endsWith("'"))
+      ) {
+        normalized = normalized.substring(1, normalized.length - 1).trim();
+      }
+
+      return normalized.toLowerCase();
+    }
+
+    function registerPersonaValue(rawPersona, personasMap) {
+      const personaLabel = String(rawPersona || '').trim().replace(/^['"]|['"]$/g, '').trim();
+      const personaKey = normalizePersonaValue(personaLabel);
+
+      if (!personaKey) return '';
+      if (!personasMap.has(personaKey)) {
+        personasMap.set(personaKey, personaLabel);
+      }
+
+      return personasMap.get(personaKey);
+    }
+
+    function parsePersonaValues(rawValue, personasMap) {
+      const personaMatch = rawValue.match(/\[(.*)\]/);
+      const rawPersonas = personaMatch ? personaMatch[1].split(',') : [rawValue];
+
+      return rawPersonas
+        .map(persona => registerPersonaValue(persona, personasMap))
+        .filter(Boolean);
+    }
+
+    function cleanAttributeValue(value) {
+      let cleaned = String(value || '').trim();
+      if (
+        (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+        (cleaned.startsWith("'") && cleaned.endsWith("'"))
+      ) {
+        cleaned = cleaned.substring(1, cleaned.length - 1).trim();
+      }
+      return cleaned;
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function isStructuralNodeType(type) {
+      return type === 'page' || type === 'group' || type === 'field group' || type === 'fieldgroup';
+    }
+
+    function isConditionalNodeType(type) {
+      return ['decision', 'branch', 'selector', 'cluster'].includes(type);
+    }
+
+    function isFlowNavigationNodeType(type) {
+      return ['flow', 'reference', 'continue', 'entry', 'exit', 'concurrent', 'file'].includes(type);
+    }
+
+    function isSpecialFlowNodeType(type) {
+      return isConditionalNodeType(type) || isFlowNavigationNodeType(type);
+    }
+
+    function getNodeDimensions(type) {
+      if (isStructuralNodeType(type)) {
+        return { width: 220, height: 60 };
+      }
+
+      switch (type) {
+        case 'decision':
+          return { width: 170, height: 92 };
+        case 'branch':
+          return { width: 158, height: 96 };
+        case 'selector':
+          return { width: 182, height: 92 };
+        case 'cluster':
+          return { width: 96, height: 96 };
+        case 'concurrent':
+          return { width: 156, height: 82 };
+        case 'flow':
+        case 'reference':
+          return { width: 188, height: 74 };
+        case 'continue':
+        case 'entry':
+        case 'exit':
+          return { width: 172, height: 70 };
+        case 'file':
+          return { width: 160, height: 68 };
+        default:
+          return { width: 220, height: 44 };
+      }
+    }
+
+    function getConnectorLabel(node) {
+      return node.condition || node.action || '';
+    }
+
+    function isConditionalConnector(parentNode, childNode) {
+      return Boolean(childNode.condition) || isConditionalNodeType(parentNode.type) || isConditionalNodeType(childNode.type);
+    }
+
+    function shouldRenderArrowHead(parentNode, childNode) {
+      if (isConditionalNodeType(childNode.type) && !isConditionalNodeType(parentNode.type)) {
+        return false;
+      }
+
+      return true;
+    }
+
+    function getFlowNodeSpec(node) {
+      const base = {
+        bg: 'bg-white dark:bg-slate-800',
+        border: 'border-slate-300 dark:border-slate-600',
+        icon: 'description',
+        accent: 'bg-sky-400',
+        labelClass: 'text-slate-800 dark:text-white',
+        typeClass: 'text-slate-500 dark:text-slate-400',
+        clipPath: '',
+        borderRadius: '14px',
+        customShape: false
+      };
+
+      if (node.type === 'page') {
+        return { ...base, bg: 'bg-indigo-50 dark:bg-indigo-950', border: 'border-indigo-200 dark:border-indigo-900', icon: 'web', accent: 'bg-indigo-600' };
+      }
+      if (node.type === 'group' || node.type === 'field group' || node.type === 'fieldgroup') {
+        return { ...base, bg: 'bg-amber-50 dark:bg-amber-950', border: 'border-amber-200 dark:border-amber-900', icon: 'folder', accent: 'bg-amber-500' };
+      }
+      if (node.type === 'element') {
+        return { ...base, bg: 'bg-slate-100 dark:bg-slate-800', border: 'border-slate-300 dark:border-slate-600 border-dashed border-2', icon: 'widgets', accent: 'bg-slate-400 dark:bg-slate-500' };
+      }
+
+      switch (node.type) {
+        case 'button':
+          return { ...base, icon: 'smart_button', accent: 'bg-purple-500' };
+        case 'input':
+          return { ...base, icon: 'text_fields' };
+        case 'select':
+          return { ...base, icon: 'arrow_drop_down_circle' };
+        case 'calendar':
+          return { ...base, icon: 'calendar_month' };
+        case 'textarea':
+          return { ...base, icon: 'notes' };
+        case 'checkbox':
+          return { ...base, icon: 'check_box' };
+        case 'radio':
+          return { ...base, icon: 'radio_button_checked' };
+        case 'decision':
+          return { ...base, bg: 'bg-rose-50 dark:bg-rose-950/60', border: 'border-rose-300 dark:border-rose-800', icon: 'alt_route', labelClass: 'text-rose-800 dark:text-rose-100', typeClass: 'text-rose-600 dark:text-rose-300', clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)', borderRadius: '0', customShape: true };
+        case 'branch':
+          return { ...base, bg: 'bg-amber-50 dark:bg-amber-950/60', border: 'border-amber-300 dark:border-amber-800', icon: 'fork_right', labelClass: 'text-amber-900 dark:text-amber-100', typeClass: 'text-amber-700 dark:text-amber-300', clipPath: 'polygon(50% 0%, 100% 100%, 0% 100%)', borderRadius: '0', customShape: true };
+        case 'selector':
+          return { ...base, bg: 'bg-cyan-50 dark:bg-cyan-950/60', border: 'border-cyan-300 dark:border-cyan-800', icon: 'rule', labelClass: 'text-cyan-900 dark:text-cyan-100', typeClass: 'text-cyan-700 dark:text-cyan-300', clipPath: 'polygon(18% 0%, 82% 0%, 100% 100%, 0% 100%)', borderRadius: '0', customShape: true };
+        case 'cluster':
+          return { ...base, bg: 'bg-fuchsia-50 dark:bg-fuchsia-950/60', border: 'border-fuchsia-300 dark:border-fuchsia-800', icon: 'hub', labelClass: 'text-fuchsia-900 dark:text-fuchsia-100', typeClass: 'text-fuchsia-700 dark:text-fuchsia-300', borderRadius: '9999px', customShape: true };
+        case 'flow':
+          return { ...base, bg: 'bg-indigo-50 dark:bg-indigo-950/70', border: 'border-indigo-300 dark:border-indigo-800 border-dashed', icon: 'route', labelClass: 'text-indigo-900 dark:text-indigo-100', typeClass: 'text-indigo-700 dark:text-indigo-300', clipPath: 'polygon(10% 0%, 90% 0%, 100% 24%, 100% 76%, 90% 100%, 10% 100%, 0% 76%, 0% 24%)', borderRadius: '0', customShape: true };
+        case 'reference':
+          return { ...base, bg: 'bg-violet-50 dark:bg-violet-950/70', border: 'border-violet-300 dark:border-violet-800 border-dashed', icon: 'bookmark', labelClass: 'text-violet-900 dark:text-violet-100', typeClass: 'text-violet-700 dark:text-violet-300', clipPath: 'polygon(10% 0%, 90% 0%, 100% 24%, 100% 76%, 90% 100%, 10% 100%, 0% 76%, 0% 24%)', borderRadius: '0', customShape: true };
+        case 'continue':
+          return { ...base, bg: 'bg-slate-50 dark:bg-slate-900', border: 'border-slate-400 dark:border-slate-600 border-dashed', icon: 'more_horiz', clipPath: 'polygon(10% 0%, 90% 0%, 90% 18%, 100% 18%, 100% 82%, 90% 82%, 90% 100%, 10% 100%, 10% 82%, 0% 82%, 0% 18%, 10% 18%)', borderRadius: '0', customShape: true };
+        case 'entry':
+          return { ...base, bg: 'bg-emerald-50 dark:bg-emerald-950/60', border: 'border-emerald-300 dark:border-emerald-800 border-dashed', icon: 'login', labelClass: 'text-emerald-900 dark:text-emerald-100', typeClass: 'text-emerald-700 dark:text-emerald-300', clipPath: 'polygon(10% 0%, 90% 0%, 90% 18%, 100% 18%, 100% 82%, 90% 82%, 90% 100%, 10% 100%, 10% 82%, 0% 82%, 0% 18%, 10% 18%)', borderRadius: '0', customShape: true };
+        case 'exit':
+          return { ...base, bg: 'bg-orange-50 dark:bg-orange-950/60', border: 'border-orange-300 dark:border-orange-800 border-dashed', icon: 'logout', labelClass: 'text-orange-900 dark:text-orange-100', typeClass: 'text-orange-700 dark:text-orange-300', clipPath: 'polygon(10% 0%, 90% 0%, 90% 18%, 100% 18%, 100% 82%, 90% 82%, 90% 100%, 10% 100%, 10% 82%, 0% 82%, 0% 18%, 10% 18%)', borderRadius: '0', customShape: true };
+        case 'concurrent':
+          return { ...base, bg: 'bg-sky-50 dark:bg-sky-950/60', border: 'border-sky-300 dark:border-sky-800', icon: 'splitscreen', labelClass: 'text-sky-900 dark:text-sky-100', typeClass: 'text-sky-700 dark:text-sky-300', borderRadius: orientation === 'horizontal' ? '9999px 0 0 9999px' : '9999px 9999px 0 0', customShape: true };
+        case 'file':
+          return { ...base, bg: 'bg-slate-50 dark:bg-slate-800', border: 'border-slate-300 dark:border-slate-600', icon: 'draft', clipPath: 'polygon(0 0, 78% 0, 100% 22%, 100% 100%, 0 100%)', borderRadius: '0', customShape: true };
+        default:
+          return base;
+      }
+    }
+
+    function getLayoutDepthStep() {
+      return orientation === 'horizontal' ? 290 : 160;
+    }
+
+    function getLeafGap() {
+      return orientation === 'horizontal' ? 40 : 56;
+    }
+
     // --- Helper to check if node has a collapsed ancestor ---
     function isNodeHidden(node) {
       let current = node.parent;
@@ -811,7 +1089,8 @@ page: Home Screen
     function matchesSelectedPersona(node) {
       if (selectedPersona === 'all') return true;
       if (!node.personas || node.personas.length === 0) return true;
-      return node.personas.includes(selectedPersona);
+      const selectedPersonaKey = normalizePersonaValue(selectedPersona);
+      return node.personas.some(persona => normalizePersonaValue(persona) === selectedPersonaKey);
     }
 
     // --- Node selection & sync editor scrolling handler ---
@@ -853,8 +1132,9 @@ page: Home Screen
     function centerOnNode(node) {
       if (!node || node.x === undefined || node.y === undefined) return;
       const rect = canvasContainer.getBoundingClientRect();
-      const nodeW = 220;
-      const nodeH = (node.type === 'page' || node.type === 'group' || node.type === 'field group' || node.type === 'fieldgroup') ? 60 : 44;
+      const dimensions = getNodeDimensions(node.type);
+      const nodeW = dimensions.width;
+      const nodeH = dimensions.height;
       
       // Calculate panX and panY to place card directly in viewport center
       panX = (rect.width / 2) - (node.x + nodeW / 2) * zoomLevel;
@@ -1044,7 +1324,7 @@ page: Home Screen
       let diagramTitle = "Untitled Diagram";
 
       // Keep track of all declared unique personas
-      const declaredPersonas = new Set();
+      const declaredPersonas = new Map();
 
       // FIRST PASS: Parse metadata (like title:, persona:) and build a directory of declared elements.
       const declaredElements = {};
@@ -1067,7 +1347,7 @@ page: Home Screen
         if (cleanLine.toLowerCase().startsWith('persona:')) {
           const personaPart = cleanLine.substring(8).trim().split('{')[0].trim();
           if (personaPart) {
-            declaredPersonas.add(personaPart);
+            registerPersonaValue(personaPart, declaredPersonas);
           }
           return;
         }
@@ -1092,6 +1372,8 @@ page: Home Screen
         let nodePersonas = [];
         let comment = '';
         let href = '';
+        let condition = '';
+        let action = '';
         let hasStatusSet = false;
         let hasFlagsSet = false;
 
@@ -1141,28 +1423,21 @@ page: Home Screen
                 status = val.toLowerCase();
                 hasStatusSet = true;
               } else if (key === 'comment') {
-                let cleanVal = val.trim();
-                if ((cleanVal.startsWith('"') && cleanVal.endsWith('"')) || (cleanVal.startsWith("'") && cleanVal.endsWith("'"))) {
-                  cleanVal = cleanVal.substring(1, cleanVal.length - 1);
-                }
-                comment = cleanVal;
+                comment = cleanAttributeValue(val);
               } else if (key === 'href') {
                 href = val.trim();
+              } else if (key === 'condition') {
+                condition = cleanAttributeValue(val);
+              } else if (key === 'action') {
+                action = cleanAttributeValue(val);
               } else if (key === 'flags') {
                 const flagMatch = val.match(/\[(.*)\]/);
                 if (flagMatch) {
                   flags = flagMatch[1].split(',').map(f => f.trim()).filter(Boolean);
                   hasFlagsSet = true;
                 }
-              } else if (key === 'personas') {
-                const personaMatch = val.match(/\[(.*)\]/);
-                if (personaMatch) {
-                  nodePersonas = personaMatch[1].split(',').map(p => p.trim()).filter(Boolean);
-                } else {
-                  nodePersonas = [val.trim()];
-                }
-                // Automatically add inline-defined personas to our system filter set
-                nodePersonas.forEach(p => declaredPersonas.add(p));
+              } else if (key === 'personas' || key === 'persona') {
+                nodePersonas = parsePersonaValues(val, declaredPersonas);
               }
             }
           });
@@ -1181,6 +1456,8 @@ page: Home Screen
               personas: nodePersonas,
               comment,
               href,
+              condition,
+              action,
               hasStatusSet,
               hasFlagsSet
             };
@@ -1194,6 +1471,8 @@ page: Home Screen
               personas: nodePersonas,
               comment,
               href,
+              condition,
+              action,
               hasStatusSet,
               hasFlagsSet
             };
@@ -1248,6 +1527,8 @@ page: Home Screen
           personas: [],
           comment: '',
           href: '',
+          condition: '',
+          action: '',
           customIdSet: false,
           hasStatusSet: false,
           hasFlagsSet: false
@@ -1300,26 +1581,21 @@ page: Home Screen
                 attributes.status = val.toLowerCase();
                 attributes.hasStatusSet = true;
               } else if (key === 'comment') {
-                let cleanVal = val.trim();
-                if ((cleanVal.startsWith('"') && cleanVal.endsWith('"')) || (cleanVal.startsWith("'") && cleanVal.endsWith("'"))) {
-                  cleanVal = cleanVal.substring(1, cleanVal.length - 1);
-                }
-                attributes.comment = cleanVal;
+                attributes.comment = cleanAttributeValue(val);
               } else if (key === 'href') {
                 attributes.href = val.trim();
+              } else if (key === 'condition') {
+                attributes.condition = cleanAttributeValue(val);
+              } else if (key === 'action') {
+                attributes.action = cleanAttributeValue(val);
               } else if (key === 'flags') {
                 const flagMatch = val.match(/\[(.*)\]/);
                 if (flagMatch) {
                   attributes.flags = flagMatch[1].split(',').map(f => f.trim()).filter(Boolean);
                   attributes.hasFlagsSet = true;
                 }
-              } else if (key === 'personas') {
-                const personaMatch = val.match(/\[(.*)\]/);
-                if (personaMatch) {
-                  attributes.personas = personaMatch[1].split(',').map(p => p.trim()).filter(Boolean);
-                } else {
-                  attributes.personas = [val.trim()];
-                }
+              } else if (key === 'personas' || key === 'persona') {
+                attributes.personas = parsePersonaValues(val, declaredPersonas);
               }
             }
           });
@@ -1332,6 +1608,8 @@ page: Home Screen
         let resolvedPersonas = attributes.personas;
         let resolvedComment = attributes.comment;
         let resolvedHref = attributes.href;
+        let resolvedCondition = attributes.condition;
+        let resolvedAction = attributes.action;
         let hasCustomId = attributes.customIdSet;
 
         if (attributes.customIdSet && declaredElements[attributes.id]) {
@@ -1368,6 +1646,14 @@ page: Home Screen
           if (!attributes.href && stored.href) {
             resolvedHref = stored.href;
           }
+
+          if (!attributes.condition && stored.condition) {
+            resolvedCondition = stored.condition;
+          }
+
+          if (!attributes.action && stored.action) {
+            resolvedAction = stored.action;
+          }
         } else if (label === "" && attributes.customIdSet) {
           resolvedLabel = `[${attributes.id}]`;
         }
@@ -1384,6 +1670,8 @@ page: Home Screen
           personas: resolvedPersonas,
           comment: resolvedComment,
           href: resolvedHref,
+          condition: resolvedCondition,
+          action: resolvedAction,
           lineStart: lineOffsets[index].start,
           lineEnd: lineOffsets[index].end,
           hidden: true, // Default to true so collapsed branches do not leak undefined rendering parameters
@@ -1439,12 +1727,12 @@ page: Home Screen
     }
 
     // --- Dynamic Persona Dropdown Manager ---
-    function updatePersonaDropdown(personasSet) {
+    function updatePersonaDropdown(personasMap) {
       const card = document.getElementById('persona-filter-card');
       const select = document.getElementById('personaSelect');
       
       if (!select) return;
-      if (personasSet.size === 0) {
+      if (personasMap.size === 0) {
         if (card) card.classList.add('hidden');
         return;
       }
@@ -1453,7 +1741,9 @@ page: Home Screen
       const previousSelection = selectedPersona;
       
       select.innerHTML = '<option value="all">👥 Show All Personas</option>';
-      personasSet.forEach(persona => {
+      Array.from(personasMap.values())
+        .sort((left, right) => left.localeCompare(right))
+        .forEach(persona => {
         const option = document.createElement('option');
         option.value = persona;
         option.textContent = `👤 ${persona}`;
@@ -1463,7 +1753,8 @@ page: Home Screen
         select.appendChild(option);
       });
 
-      if (previousSelection !== 'all' && !personasSet.has(previousSelection)) {
+      const availablePersonaKeys = new Set(Array.from(personasMap.keys()));
+      if (previousSelection !== 'all' && !availablePersonaKeys.has(normalizePersonaValue(previousSelection))) {
         selectedPersona = 'all';
       }
     }
@@ -1491,7 +1782,7 @@ page: Home Screen
       if (roots.length === 0) return;
 
       // Track layouts
-      const leafTracker = { count: 0 };
+      const leafTracker = { count: 0, cursor: 40 };
       
       // Calculate coordinates dynamically respecting expanded/collapsed and persona states
       roots.forEach(root => {
@@ -1551,9 +1842,9 @@ page: Home Screen
       const visibleChildrenByPersona = node.children.filter(child => matchesSelectedPersona(child));
       const hasVisibleChildren = visibleChildrenByPersona.length > 0 && !collapsedPaths.has(node.pathId);
 
-      // Card Dimensions: Page and Group are slightly larger (60px), leaves are very slim (44px). Width is 220px.
-      node.width = 220;
-      node.height = (node.type === 'page' || node.type === 'group' || node.type === 'field group' || node.type === 'fieldgroup') ? 60 : 44;
+      const dimensions = getNodeDimensions(node.type);
+      node.width = dimensions.width;
+      node.height = dimensions.height;
 
       if (!hasVisibleChildren) {
         // If node has no visible child branches (or is collapsed), it acts as a visual leaf terminal
@@ -1561,11 +1852,13 @@ page: Home Screen
         tracker.count += 1;
 
         if (orientation === 'horizontal') {
-          node.x = depth * 270 + 50;
-          node.y = node.leafIndex * 65 + 40; // Reduced vertical gap from 95 to 65 for tight leaf layout!
+          node.x = depth * getLayoutDepthStep() + 50;
+          node.y = tracker.cursor;
+          tracker.cursor += node.height + getLeafGap();
         } else {
-          node.x = node.leafIndex * 240 + 50;
-          node.y = depth * 110 + 40; // Reduced horizontal step height from 140 to 110!
+          node.x = tracker.cursor;
+          node.y = depth * getLayoutDepthStep() + 40;
+          tracker.cursor += node.width + getLeafGap();
         }
       } else {
         // Recursively position active child paths ONLY
@@ -1578,24 +1871,30 @@ page: Home Screen
         if (visibleChildren.length > 0) {
           const firstChild = visibleChildren[0];
           const lastChild = visibleChildren[visibleChildren.length - 1];
+          const firstChildCenterY = firstChild.y + (firstChild.height / 2);
+          const lastChildCenterY = lastChild.y + (lastChild.height / 2);
+          const firstChildCenterX = firstChild.x + (firstChild.width / 2);
+          const lastChildCenterX = lastChild.x + (lastChild.width / 2);
 
           if (orientation === 'horizontal') {
-            node.x = depth * 270 + 50;
-            node.y = (firstChild.y + lastChild.y) / 2;
+            node.x = depth * getLayoutDepthStep() + 50;
+            node.y = ((firstChildCenterY + lastChildCenterY) / 2) - (node.height / 2);
           } else {
-            node.x = (firstChild.x + lastChild.x) / 2;
-            node.y = depth * 110 + 40;
+            node.x = ((firstChildCenterX + lastChildCenterX) / 2) - (node.width / 2);
+            node.y = depth * getLayoutDepthStep() + 40;
           }
         } else {
           // Fallback if children calculated as hidden during recursive resolution
           node.leafIndex = tracker.count;
           tracker.count += 1;
           if (orientation === 'horizontal') {
-            node.x = depth * 270 + 50;
-            node.y = node.leafIndex * 65 + 40;
+            node.x = depth * getLayoutDepthStep() + 50;
+            node.y = tracker.cursor;
+            tracker.cursor += node.height + getLeafGap();
           } else {
-            node.x = node.leafIndex * 240 + 50;
-            node.y = depth * 110 + 40;
+            node.x = tracker.cursor;
+            node.y = depth * getLayoutDepthStep() + 40;
+            tracker.cursor += node.width + getLeafGap();
           }
         }
       }
@@ -1609,30 +1908,74 @@ page: Home Screen
         if (child.hidden) return;
         
         let pathData = '';
+        let startX = 0;
+        let startY = 0;
+        let endX = 0;
+        let endY = 0;
         if (orientation === 'horizontal') {
-          const startX = node.x + node.width;
-          const startY = node.y + (node.height / 2);
-          const endX = child.x;
-          const endY = child.y + (child.height / 2);
-          const cpX1 = startX + 40;
-          const cpX2 = endX - 40;
+          startX = node.x + node.width;
+          startY = node.y + (node.height / 2);
+          endX = child.x;
+          endY = child.y + (child.height / 2);
+          const horizontalGap = Math.max(0, endX - startX);
+          const bendOffset = Math.max(14, Math.min(40, horizontalGap / 2));
+          const cpX1 = startX + bendOffset;
+          const cpX2 = endX - bendOffset;
           pathData = `M ${startX} ${startY} C ${cpX1} ${startY}, ${cpX2} ${endY}, ${endX} ${endY}`;
         } else {
-          const startX = node.x + (node.width / 2);
-          const startY = node.y + node.height;
-          const endX = child.x + (child.width / 2);
-          const endY = child.y;
-          const cpY1 = startY + 25;
-          const cpY2 = endY - 25;
+          startX = node.x + (node.width / 2);
+          startY = node.y + node.height;
+          endX = child.x + (child.width / 2);
+          endY = child.y;
+          const verticalGap = Math.max(0, endY - startY);
+          const bendOffset = Math.max(14, Math.min(32, verticalGap / 2));
+          const cpY1 = startY + bendOffset;
+          const cpY2 = endY - bendOffset;
           pathData = `M ${startX} ${startY} C ${startX} ${cpY1}, ${endX} ${cpY2}, ${endX} ${endY}`;
         }
 
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', pathData);
-        path.setAttribute('class', 'stroke-slate-300 dark:stroke-slate-600 fill-none transition-all');
-        path.setAttribute('stroke-width', '1.5');
-        path.setAttribute('marker-end', document.documentElement.classList.contains('dark') ? 'url(#arrow-dark)' : 'url(#arrow)');
+        const conditionalConnector = isConditionalConnector(node, child);
+        const navigationConnector = isFlowNavigationNodeType(node.type) || isFlowNavigationNodeType(child.type);
+        path.setAttribute('class', `${navigationConnector ? 'stroke-indigo-300 dark:stroke-indigo-600' : 'stroke-slate-300 dark:stroke-slate-600'} fill-none transition-all`);
+        path.setAttribute('stroke-width', conditionalConnector ? '2' : '1.5');
+        if (conditionalConnector) {
+          path.setAttribute('stroke-dasharray', '6,4');
+        }
+        if (shouldRenderArrowHead(node, child)) {
+          path.setAttribute('marker-end', document.documentElement.classList.contains('dark') ? 'url(#arrow-dark)' : 'url(#arrow)');
+        }
         svgGroup.appendChild(path);
+
+        const connectorLabel = getConnectorLabel(child);
+        if (connectorLabel) {
+          const labelGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          const labelX = (startX + endX) / 2;
+          const labelY = orientation === 'horizontal' ? ((startY + endY) / 2) - 10 : ((startY + endY) / 2) - 12;
+          const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          text.setAttribute('x', String(labelX));
+          text.setAttribute('y', String(labelY));
+          text.setAttribute('text-anchor', 'middle');
+          text.setAttribute('dominant-baseline', 'middle');
+          text.setAttribute('font-size', '10');
+          text.setAttribute('font-weight', '700');
+          text.setAttribute('class', child.condition ? 'fill-rose-600 dark:fill-rose-300' : 'fill-sky-600 dark:fill-sky-300');
+          text.textContent = connectorLabel;
+
+          const estimatedWidth = Math.max(44, connectorLabel.length * 6.5 + 12);
+          const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          rect.setAttribute('x', String(labelX - estimatedWidth / 2));
+          rect.setAttribute('y', String(labelY - 9));
+          rect.setAttribute('width', String(estimatedWidth));
+          rect.setAttribute('height', '18');
+          rect.setAttribute('rx', '9');
+          rect.setAttribute('class', child.condition ? 'fill-rose-50 dark:fill-rose-950/90 stroke-rose-200 dark:stroke-rose-800' : 'fill-sky-50 dark:fill-sky-950/90 stroke-sky-200 dark:stroke-sky-800');
+
+          labelGroup.appendChild(rect);
+          labelGroup.appendChild(text);
+          svgGroup.appendChild(labelGroup);
+        }
 
         drawBranches(child, svgGroup);
       });
@@ -1665,45 +2008,9 @@ page: Home Screen
       g.setAttribute('class', 'group node-transition');
       g.setAttribute('id', `dom-node-${node.index}`);
 
-      // Setup solid opaque colors based on node type
-      let typeBg = 'bg-white dark:bg-slate-800';
-      let typeBorder = 'border-slate-200 dark:border-slate-700';
-      let typeIcon = 'layers';
-      let accentBar = 'bg-indigo-500';
-
-      const isStructural = (node.type === 'page' || node.type === 'group' || node.type === 'field group' || node.type === 'fieldgroup');
-
-      if (node.type === 'page') {
-        typeBg = 'bg-indigo-50 dark:bg-indigo-950';
-        typeBorder = 'border-indigo-200 dark:border-indigo-900';
-        typeIcon = 'web';
-        accentBar = 'bg-indigo-600';
-      } else if (node.type === 'group' || node.type === 'field group' || node.type === 'fieldgroup') {
-        typeBg = 'bg-amber-50 dark:bg-amber-950';
-        typeBorder = 'border-amber-200 dark:border-amber-900';
-        typeIcon = 'folder';
-        accentBar = 'bg-amber-500';
-      } else if (node.type === 'element') {
-        typeBg = 'bg-slate-100 dark:bg-slate-800';
-        typeBorder = 'border-slate-300 dark:border-slate-600 border-dashed border-2';
-        typeIcon = 'widgets';
-        accentBar = 'bg-slate-400 dark:bg-slate-500';
-      } else {
-        typeBg = 'bg-white dark:bg-slate-800';
-        typeBorder = 'border-slate-200 dark:border-slate-700';
-        accentBar = 'bg-sky-400';
-        
-        switch (node.type) {
-          case 'input': typeIcon = 'text_fields'; break;
-          case 'select': typeIcon = 'arrow_drop_down_circle'; break;
-          case 'calendar': typeIcon = 'calendar_month'; break;
-          case 'textarea': typeIcon = 'notes'; break;
-          case 'button': typeIcon = 'smart_button'; accentBar = 'bg-purple-500'; break;
-          case 'checkbox': typeIcon = 'check_box'; break;
-          case 'radio': typeIcon = 'radio_button_checked'; break;
-          default: typeIcon = 'description';
-        }
-      }
+      const spec = getFlowNodeSpec(node);
+      const isStructural = isStructuralNodeType(node.type);
+      const isSpecialFlowNode = isSpecialFlowNodeType(node.type);
 
       // Handle custom statuses
       let statusStyle = '';
@@ -1754,11 +2061,19 @@ page: Home Screen
 
       // Inline Expand / Collapse button on parent nodes
       let collapseBtnHtml = '';
+      let floatingCollapseBtnHtml = '';
       if (node.children.length > 0) {
         const isCollapsed = collapsedPaths.has(node.pathId);
         collapseBtnHtml = `
           <button onclick="event.stopPropagation(); toggleNodeCollapse('${node.pathId}')" 
                   class="p-0.5 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition-all flex items-center justify-center text-slate-500 dark:text-slate-300 shrink-0" 
+                  title="${isCollapsed ? 'Expand Children' : 'Collapse Children'}">
+            <span class="material-symbols-outlined text-[16px]">${isCollapsed ? 'expand_content' : 'collapse_content'}</span>
+          </button>
+        `;
+        floatingCollapseBtnHtml = `
+          <button onclick="event.stopPropagation(); toggleNodeCollapse('${node.pathId}')" 
+                  class="p-1 rounded-full border border-slate-300/90 dark:border-slate-500 bg-white/95 dark:bg-slate-900/95 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-lg backdrop-blur-sm transition-all flex items-center justify-center text-slate-700 dark:text-slate-100 shrink-0" 
                   title="${isCollapsed ? 'Expand Children' : 'Collapse Children'}">
             <span class="material-symbols-outlined text-[16px]">${isCollapsed ? 'expand_content' : 'collapse_content'}</span>
           </button>
@@ -1787,7 +2102,7 @@ page: Home Screen
       // Display Helper Info Icon with hover tooltip when comments exist
       let commentHtml = '';
       if (node.comment) {
-        const escapedComment = node.comment.replace(/"/g, '&quot;');
+        const escapedComment = escapeHtml(node.comment);
         commentHtml = `
           <span class="material-symbols-outlined text-[14px] text-slate-400 dark:text-slate-500 hover:text-indigo-500 dark:hover:text-indigo-400 shrink-0 cursor-help select-none transition-colors" 
                 title="${escapedComment}">
@@ -1802,7 +2117,7 @@ page: Home Screen
         hrefLinkHtml = `
           <button onclick="event.stopPropagation(); scrollToNodeId('${node.href}')" 
                   class="p-0.5 rounded bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900 transition-colors flex items-center justify-center shrink-0" 
-                  title="Follow navigation path to: ${node.href}">
+                  title="Follow navigation path to: ${escapeHtml(node.href)}">
             <span class="material-symbols-outlined text-[13px]">arrow_right_alt</span>
           </button>
         `;
@@ -1810,27 +2125,69 @@ page: Home Screen
 
       const foreignObject = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
       foreignObject.setAttribute('width', String(node.width));
-      foreignObject.setAttribute('height', String(node.height + 25)); // Provide spacing padding at bottom
+      const extraForeignObjectHeight = isSpecialFlowNode ? 44 : 25;
+      foreignObject.setAttribute('height', String(node.height + extraForeignObjectHeight));
 
       // Design distinct layout profiles based on Structural nodes (Page/Group) vs Slim Leaf nodes
       let cardInnerHtml = '';
 
-      if (isStructural) {
+      if (isSpecialFlowNode) {
+        const shapeStyle = [
+          `height: ${node.height}px`,
+          'display: flex',
+          'align-items: center',
+          'justify-content: center',
+          'text-align: center',
+          'padding: 10px',
+          `border-radius: ${spec.borderRadius}`,
+          spec.clipPath ? `clip-path: ${spec.clipPath}` : '',
+          spec.clipPath ? `-webkit-clip-path: ${spec.clipPath}` : ''
+        ].filter(Boolean).join('; ');
+
+        const topBadgeHtml = node.condition
+          ? `<div class="absolute top-1.5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/90 border border-rose-200 dark:border-rose-800 text-[8px] font-bold text-rose-600 dark:text-rose-300 max-w-[120px] truncate z-10">${escapeHtml(node.condition)}</div>`
+          : (node.action
+            ? `<div class="absolute top-1.5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-sky-50 dark:bg-sky-950/90 border border-sky-200 dark:border-sky-800 text-[8px] font-bold text-sky-600 dark:text-sky-300 max-w-[120px] truncate z-10">${escapeHtml(node.action)}</div>`
+            : '');
+
+        cardInnerHtml = `
+          <div xmlns="http://www.w3.org/1999/xhtml" class="relative w-full h-full overflow-visible">
+            ${topBadgeHtml}
+            <div class="w-full border ${spec.border} ${spec.bg} ${statusStyle} shadow-sm dark:shadow-slate-950/20 cursor-pointer relative overflow-hidden" 
+                style="${shapeStyle}"
+                onclick="handleNodeClick(event, '${node.pathId}', ${node.lineStart}, ${node.lineEnd})"
+                onmouseenter="handleNodeHover('${node.id}', true)" 
+                onmouseleave="handleNodeHover('${node.id}', false)">
+             <div class="flex flex-col items-center justify-center gap-1 w-full h-full px-2">
+               <span class="material-symbols-outlined text-[18px] ${spec.typeClass}">${spec.icon}</span>
+               ${node.label ? `<span class="font-bold text-[10px] leading-tight ${spec.labelClass} max-w-full break-words">${escapeHtml(node.label)}</span>` : ''}
+               <span class="text-[8px] uppercase font-mono tracking-wide ${spec.typeClass}">${escapeHtml(node.type)}</span>
+             </div>
+             <div class="absolute top-2 right-2 flex items-center space-x-1">
+               ${commentHtml}
+               ${hrefLinkHtml}
+             </div>
+             ${sharedIndicatorHtml ? `<div class="absolute bottom-1.5 left-2">${sharedIndicatorHtml}</div>` : ''}
+            </div>
+            ${floatingCollapseBtnHtml ? `<div class="absolute bottom-1 right-2 z-30">${floatingCollapseBtnHtml}</div>` : ''}
+          </div>
+        `;
+      } else if (isStructural) {
         // High Contrast, robust 60px height layout for Page/Group nodes
         cardInnerHtml = `
-          <div xmlns="http://www.w3.org/1999/xhtml" class="p-2 rounded-xl border ${typeBorder} ${typeBg} ${statusStyle} select-none shadow-sm relative group-hover:shadow-lg dark:shadow-slate-950/20 cursor-pointer" 
-               style="height: 60px; display: flex; flex-direction: column; justify-content: space-between;"
+          <div xmlns="http://www.w3.org/1999/xhtml" class="p-2 rounded-xl border ${spec.border} ${spec.bg} ${statusStyle} select-none shadow-sm relative group-hover:shadow-lg dark:shadow-slate-950/20 cursor-pointer" 
+              style="height: 60px; display: flex; flex-direction: column; justify-content: space-between;"
                onclick="handleNodeClick(event, '${node.pathId}', ${node.lineStart}, ${node.lineEnd})"
                onmouseenter="handleNodeHover('${node.id}', true)" 
                onmouseleave="handleNodeHover('${node.id}', false)">
-            
-            <div class="absolute left-0 top-2 bottom-2 w-1 rounded-r-md ${accentBar}"></div>
-            
+             
+            <div class="absolute left-0 top-2 bottom-2 w-1 rounded-r-md ${spec.accent}"></div>
+             
             <div class="flex items-start justify-between w-full overflow-hidden">
               <div class="flex flex-col truncate pr-2 w-full">
                 <div class="flex items-center space-x-1.5 truncate w-full">
-                  <span class="material-symbols-outlined text-[15px] text-slate-500">${typeIcon}</span>
-                  <span class="font-bold text-[10px] truncate text-slate-800 dark:text-white" title="${node.label}">${node.label}</span>
+                  <span class="material-symbols-outlined text-[15px] text-slate-500">${spec.icon}</span>
+                  <span class="font-bold text-[10px] truncate ${spec.labelClass}" title="${escapeHtml(node.label)}">${escapeHtml(node.label)}</span>
                   ${commentHtml}
                   ${hrefLinkHtml}
                 </div>
@@ -1840,7 +2197,7 @@ page: Home Screen
             </div>
 
             <div class="flex items-center justify-between mt-auto w-full">
-              <span class="text-[8px] font-mono font-medium text-slate-400 dark:text-slate-500 uppercase">${node.type}</span>
+              <span class="text-[8px] font-mono font-medium ${spec.typeClass} uppercase">${escapeHtml(node.type)}</span>
               <div class="flex items-center space-x-1.5 font-sans">
                 ${badgeHtml}
                 ${collapseBtnHtml}
@@ -1854,19 +2211,19 @@ page: Home Screen
       } else {
         // Highly compacted, slim 44px single-row style layout for Leaf nodes
         cardInnerHtml = `
-          <div xmlns="http://www.w3.org/1999/xhtml" class="p-2 rounded-lg border ${typeBorder} ${typeBg} ${statusStyle} select-none shadow-sm relative group-hover:shadow-lg dark:shadow-slate-950/20 cursor-pointer animate-none" 
+          <div xmlns="http://www.w3.org/1999/xhtml" class="p-2 rounded-lg border ${spec.border} ${spec.bg} ${statusStyle} select-none shadow-sm relative group-hover:shadow-lg dark:shadow-slate-950/20 cursor-pointer animate-none" 
                style="height: 44px; display: flex; align-items: center;"
                onclick="handleNodeClick(event, '${node.pathId}', ${node.lineStart}, ${node.lineEnd})"
                onmouseenter="handleNodeHover('${node.id}', true)" 
                onmouseleave="handleNodeHover('${node.id}', false)">
             
-            <div class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md ${accentBar}"></div>
+            <div class="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md ${spec.accent}"></div>
             
             <div class="flex items-center justify-between w-full overflow-hidden">
               <!-- Label, Icon and comments -->
               <div class="flex items-center space-x-1.5 truncate pr-1">
-                <span class="material-symbols-outlined text-[14px] text-slate-500 shrink-0">${typeIcon}</span>
-                <span class="font-bold text-[10px] truncate text-slate-800 dark:text-white" title="${node.label}">${node.label}</span>
+                <span class="material-symbols-outlined text-[14px] text-slate-500 shrink-0">${spec.icon}</span>
+                <span class="font-bold text-[10px] truncate ${spec.labelClass}" title="${escapeHtml(node.label)}">${escapeHtml(node.label)}</span>
                 ${commentHtml}
                 ${hrefLinkHtml}
               </div>
@@ -2135,6 +2492,15 @@ page: Home Screen
         case 'button':
           codeSnippet = '\n    button: Submit Action {id: submit_id, status: success}';
           break;
+        case 'decision':
+          codeSnippet = '\n  decision: Condition met?';
+          break;
+        case 'branch':
+          codeSnippet = '\n    branch: Choose downstream path {condition: "no"}';
+          break;
+        case 'reference':
+          codeSnippet = '\n  reference: Reusable Flow {id: flow_ref, href: flow_id, action: "jump to flow"}';
+          break;
       }
 
       syntaxInput.value = text.slice(0, selectionStart) + codeSnippet + text.slice(selectionEnd);
@@ -2356,6 +2722,31 @@ page: Home Screen
       }
       parseAndRender();
     }
+
+    Object.assign(window, {
+      triggerFileInput,
+      handleFileUpload,
+      saveToFile,
+      setOrientation,
+      toggleConnections,
+      toggleInspector,
+      toggleTheme,
+      toggleHelpModal,
+      insertTemplate,
+      clearEditor,
+      loadTemplate,
+      setPersonaFilter,
+      setZoomFromMenu,
+      zoomIn,
+      zoomOut,
+      focusMainCard,
+      handleGlobalExpand,
+      handleGlobalCollapse,
+      exportToSVG,
+      handleNodeClick,
+      toggleNodeCollapse,
+      scrollToNodeId
+    });
   </script>
 </body>
 </html>
