@@ -393,7 +393,7 @@
           </div>
         </div>
 
-        <!-- RESTORED: Persona Filter Card Floating in Top Right -->
+        <!-- Floating quick filters -->
         <div id="persona-filter-card" class="hidden absolute top-4 right-4 z-20 bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 text-xs w-64 backdrop-blur-sm pointer-events-auto transition-all duration-300 hover:shadow-xl">
           <div class="flex items-center justify-between mb-2">
             <h3 class="font-bold text-slate-800 dark:text-white flex items-center">
@@ -405,6 +405,26 @@
             <select id="personaSelect" onchange="setPersonaFilter(this.value)" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer text-slate-800 dark:text-slate-100">
               <!-- Dynamically populated -->
             </select>
+          </div>
+        </div>
+
+        <div id="tag-filter-card" class="hidden absolute top-[5.5rem] right-4 z-20 bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 text-xs w-64 backdrop-blur-sm pointer-events-auto transition-all duration-300 hover:shadow-xl">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="font-bold text-slate-800 dark:text-white flex items-center">
+              <span class="material-symbols-outlined text-brand-500 text-sm mr-1.5">sell</span>
+              Tag Filter
+            </h3>
+          </div>
+          <div class="relative">
+            <select id="tagSelect" onchange="setTagFilter(this.value)" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer text-slate-800 dark:text-slate-100">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+          <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+            <p id="tag-results-summary" class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Select a tag to list matching cards</p>
+            <div id="tag-results-list" class="mt-2 max-h-48 overflow-y-auto space-y-1 text-xs font-sans">
+              <!-- Dynamically populated -->
+            </div>
           </div>
         </div>
 
@@ -670,6 +690,7 @@ flow: MFA Flow {id: mfa_flow}
     let selectedNodePathId = null; // Store path identifier of selected card
     const collapsedPaths = new Set(); // Store hierarchy path identifiers of collapsed nodes
     let selectedPersona = 'all'; // Current persona filter: 'all' or specific persona name
+    let selectedTag = 'all'; // Current tag selector: 'all' or a specific node flag
     let showInspector = false; // Collapsible Right sidebar Inspector toggle state
 
     // Setup color cache for shared instances
@@ -750,6 +771,7 @@ flow: MFA Flow {id: mfa_flow}
         selectedNodePathId = null;
         collapsedPaths.clear();
         selectedPersona = 'all';
+        selectedTag = 'all';
         parseAndRender();
         resetZoom();
       };
@@ -897,6 +919,10 @@ flow: MFA Flow {id: mfa_flow}
       return normalized.toLowerCase();
     }
 
+    function normalizeTagValue(value) {
+      return String(value || '').trim().toLowerCase();
+    }
+
     function registerPersonaValue(rawPersona, personasMap) {
       const personaLabel = String(rawPersona || '').trim().replace(/^['"]|['"]$/g, '').trim();
       const personaKey = normalizePersonaValue(personaLabel);
@@ -910,11 +936,22 @@ flow: MFA Flow {id: mfa_flow}
     }
 
     function parsePersonaValues(rawValue, personasMap) {
-      const personaMatch = rawValue.match(/\[(.*)\]/);
+      const personaMatch = String(rawValue || '').trim().match(/^\[(.*)\]$/);
       const rawPersonas = personaMatch ? personaMatch[1].split(',') : [rawValue];
 
       return rawPersonas
         .map(persona => registerPersonaValue(persona, personasMap))
+        .filter(Boolean);
+    }
+
+    function parseFlagValues(rawValue) {
+      const normalized = String(rawValue || '').trim();
+      const flagMatch = normalized.match(/^\[(.*)\]$/);
+      const rawFlags = flagMatch ? flagMatch[1].split(',') : [normalized];
+
+      return rawFlags
+        .map(flag => cleanAttributeValue(flag))
+        .map(flag => flag.trim())
         .filter(Boolean);
     }
 
@@ -956,31 +993,33 @@ flow: MFA Flow {id: mfa_flow}
 
     function getNodeDimensions(type) {
       if (isStructuralNodeType(type)) {
-        return { width: 220, height: 60 };
+        return { width: 220, height: 76 };
       }
+
+      const nonStructuralWidthBoost = 40;
 
       switch (type) {
         case 'decision':
-          return { width: 170, height: 92 };
+          return { width: 170 + nonStructuralWidthBoost, height: 92 };
         case 'branch':
-          return { width: 158, height: 96 };
+          return { width: 158 + nonStructuralWidthBoost, height: 96 };
         case 'selector':
-          return { width: 182, height: 92 };
+          return { width: 182 + nonStructuralWidthBoost, height: 92 };
         case 'cluster':
-          return { width: 96, height: 96 };
+          return { width: 96 + nonStructuralWidthBoost, height: 96 };
         case 'concurrent':
-          return { width: 156, height: 82 };
+          return { width: 156 + nonStructuralWidthBoost, height: 82 };
         case 'flow':
         case 'reference':
-          return { width: 188, height: 74 };
+          return { width: 188 + nonStructuralWidthBoost, height: 74 };
         case 'continue':
         case 'entry':
         case 'exit':
-          return { width: 172, height: 70 };
+          return { width: 172 + nonStructuralWidthBoost, height: 70 };
         case 'file':
-          return { width: 160, height: 68 };
+          return { width: 160 + nonStructuralWidthBoost, height: 68 };
         default:
-          return { width: 220, height: 44 };
+          return { width: 220 + nonStructuralWidthBoost, height: 44 };
       }
     }
 
@@ -1073,6 +1112,34 @@ flow: MFA Flow {id: mfa_flow}
       return orientation === 'horizontal' ? 40 : 56;
     }
 
+    function getCompactLeafGap() {
+      return orientation === 'horizontal' ? 24 : 36;
+    }
+
+    function getGapBetweenLeaves(previousNode, nextNode) {
+      if (!previousNode || !nextNode) return 0;
+
+      return isStructuralNodeType(previousNode.type) || isStructuralNodeType(nextNode.type)
+        ? getLeafGap()
+        : getCompactLeafGap();
+    }
+
+    function placeLeafNode(node, depth, tracker) {
+      tracker.cursor += getGapBetweenLeaves(tracker.previousLeaf, node);
+
+      if (orientation === 'horizontal') {
+        node.x = depth * getLayoutDepthStep() + 50;
+        node.y = tracker.cursor;
+        tracker.cursor += node.height;
+      } else {
+        node.x = tracker.cursor;
+        node.y = depth * getLayoutDepthStep() + 40;
+        tracker.cursor += node.width;
+      }
+
+      tracker.previousLeaf = node;
+    }
+
     // --- Helper to check if node has a collapsed ancestor ---
     function isNodeHidden(node) {
       let current = node.parent;
@@ -1091,6 +1158,17 @@ flow: MFA Flow {id: mfa_flow}
       if (!node.personas || node.personas.length === 0) return true;
       const selectedPersonaKey = normalizePersonaValue(selectedPersona);
       return node.personas.some(persona => normalizePersonaValue(persona) === selectedPersonaKey);
+    }
+
+    function matchesSelectedTag(node) {
+      if (selectedTag === 'all') return true;
+      if (!node.flags || node.flags.length === 0) return false;
+      const selectedTagKey = normalizeTagValue(selectedTag);
+      return node.flags.some(flag => normalizeTagValue(flag) === selectedTagKey);
+    }
+
+    function matchesActiveFilters(node) {
+      return matchesSelectedPersona(node);
     }
 
     // --- Node selection & sync editor scrolling handler ---
@@ -1125,6 +1203,26 @@ flow: MFA Flow {id: mfa_flow}
       const targetedNode = activeNodes.find(n => n.pathId === pathId);
       if (targetedNode) {
         centerOnNode(targetedNode);
+      }
+    }
+
+    function focusNodeByPath(pathId) {
+      const targetNode = activeNodes.find(node => node.pathId === pathId);
+      if (!targetNode) return;
+
+      let current = targetNode.parent;
+      while (current) {
+        collapsedPaths.delete(current.pathId);
+        current = current.parent;
+      }
+
+      selectedNodePathId = pathId;
+      parseAndRender();
+      highlightAndScrollToLine(targetNode.lineStart, targetNode.lineEnd);
+
+      const refreshedNode = activeNodes.find(node => node.pathId === pathId && !node.hidden);
+      if (refreshedNode) {
+        centerOnNode(refreshedNode);
       }
     }
 
@@ -1297,8 +1395,14 @@ flow: MFA Flow {id: mfa_flow}
       const text = syntaxInput.value;
       if (!text.trim()) {
         emptyState.classList.remove('hidden');
-        const card = document.getElementById('persona-filter-card');
-        if (card) card.classList.add('hidden');
+        const personaCard = document.getElementById('persona-filter-card');
+        const tagCard = document.getElementById('tag-filter-card');
+        const tagResultsSummary = document.getElementById('tag-results-summary');
+        const tagResultsList = document.getElementById('tag-results-list');
+        if (personaCard) personaCard.classList.add('hidden');
+        if (tagCard) tagCard.classList.add('hidden');
+        if (tagResultsSummary) tagResultsSummary.textContent = 'Select a tag to list matching cards';
+        if (tagResultsList) tagResultsList.innerHTML = '';
         document.getElementById('tree-branches').innerHTML = '';
         document.getElementById('tree-nodes').innerHTML = '';
         document.getElementById('cross-connections').innerHTML = '';
@@ -1431,9 +1535,8 @@ flow: MFA Flow {id: mfa_flow}
               } else if (key === 'action') {
                 action = cleanAttributeValue(val);
               } else if (key === 'flags') {
-                const flagMatch = val.match(/\[(.*)\]/);
-                if (flagMatch) {
-                  flags = flagMatch[1].split(',').map(f => f.trim()).filter(Boolean);
+                flags = parseFlagValues(val);
+                if (flags.length > 0) {
                   hasFlagsSet = true;
                 }
               } else if (key === 'personas' || key === 'persona') {
@@ -1589,9 +1692,8 @@ flow: MFA Flow {id: mfa_flow}
               } else if (key === 'action') {
                 attributes.action = cleanAttributeValue(val);
               } else if (key === 'flags') {
-                const flagMatch = val.match(/\[(.*)\]/);
-                if (flagMatch) {
-                  attributes.flags = flagMatch[1].split(',').map(f => f.trim()).filter(Boolean);
+                attributes.flags = parseFlagValues(val);
+                if (attributes.flags.length > 0) {
                   attributes.hasFlagsSet = true;
                 }
               } else if (key === 'personas' || key === 'persona') {
@@ -1716,6 +1818,7 @@ flow: MFA Flow {id: mfa_flow}
 
       // Clean up deleted node selection
       activeNodes = nodes;
+      updateTagDropdown(activeNodes);
       const selectExists = activeNodes.some(n => n.pathId === selectedNodePathId);
       if (!selectExists) {
         selectedNodePathId = null;
@@ -1759,8 +1862,96 @@ flow: MFA Flow {id: mfa_flow}
       }
     }
 
+    function updateTagDropdown(nodes) {
+      const card = document.getElementById('tag-filter-card');
+      const select = document.getElementById('tagSelect');
+      const summary = document.getElementById('tag-results-summary');
+      const resultsList = document.getElementById('tag-results-list');
+
+      if (!select || !summary || !resultsList) return;
+
+      const availableTags = new Map();
+      nodes.forEach(node => {
+        if (!node.flags || node.flags.length === 0) return;
+
+        node.flags.forEach(flag => {
+          const tagKey = normalizeTagValue(flag);
+          if (tagKey && !availableTags.has(tagKey)) {
+            availableTags.set(tagKey, flag);
+          }
+        });
+      });
+
+      if (availableTags.size === 0) {
+        if (card) card.classList.add('hidden');
+        selectedTag = 'all';
+        summary.textContent = 'Select a tag to list matching cards';
+        resultsList.innerHTML = '';
+        return;
+      }
+
+      if (card) card.classList.remove('hidden');
+      const previousSelection = selectedTag;
+
+      select.innerHTML = '<option value="all">🏷 Show All Tags</option>';
+      Array.from(availableTags.values())
+        .sort((left, right) => left.localeCompare(right))
+        .forEach(tag => {
+          const option = document.createElement('option');
+          option.value = tag;
+          option.textContent = `🏷 ${tag}`;
+          if (normalizeTagValue(tag) === normalizeTagValue(previousSelection)) {
+            option.selected = true;
+          }
+          select.appendChild(option);
+        });
+
+      if (previousSelection !== 'all' && !availableTags.has(normalizeTagValue(previousSelection))) {
+        selectedTag = 'all';
+        select.value = 'all';
+      }
+
+      updateTagResultsList(nodes);
+    }
+
+    function updateTagResultsList(nodes) {
+      const summary = document.getElementById('tag-results-summary');
+      const resultsList = document.getElementById('tag-results-list');
+
+      if (!summary || !resultsList) return;
+
+      if (selectedTag === 'all') {
+        summary.textContent = 'Select a tag to list matching cards';
+        resultsList.innerHTML = '<p class="text-slate-400 italic">All cards remain visible until you choose a tag.</p>';
+        return;
+      }
+
+      const matches = nodes.filter(node => matchesSelectedPersona(node) && matchesSelectedTag(node));
+      const matchCount = matches.length;
+      summary.textContent = `${matchCount} card${matchCount === 1 ? '' : 's'} tagged #${selectedTag}`;
+
+      if (matchCount === 0) {
+        resultsList.innerHTML = '<p class="text-slate-400 italic">No cards match the selected tag.</p>';
+        return;
+      }
+
+      resultsList.innerHTML = matches.map(node => `
+        <button onclick="focusNodeByPath('${node.pathId}')" class="w-full text-left p-2 rounded-lg border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 hover:border-brand-200 dark:hover:border-brand-700 hover:bg-white dark:hover:bg-slate-900 transition-colors">
+          <div class="flex items-center justify-between gap-2">
+            <span class="truncate font-semibold text-slate-700 dark:text-slate-200" title="${escapeHtml(node.label)}">${escapeHtml(node.label)}</span>
+            <span class="shrink-0 text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500">${escapeHtml(node.type)}</span>
+          </div>
+        </button>
+      `).join('');
+    }
+
     function setPersonaFilter(value) {
       selectedPersona = value;
+      parseAndRender();
+    }
+
+    function setTagFilter(value) {
+      selectedTag = value;
       parseAndRender();
     }
 
@@ -1782,7 +1973,7 @@ flow: MFA Flow {id: mfa_flow}
       if (roots.length === 0) return;
 
       // Track layouts
-      const leafTracker = { count: 0, cursor: 40 };
+      const leafTracker = { count: 0, cursor: 40, previousLeaf: null };
       
       // Calculate coordinates dynamically respecting expanded/collapsed and persona states
       roots.forEach(root => {
@@ -1831,16 +2022,16 @@ flow: MFA Flow {id: mfa_flow}
     // Packed extremely close together to offer compact layout sizing!
     function assignPositions(node, depth, tracker) {
       // 1. If an ancestor is collapsed, or this node doesn't match active personas, flag as hidden
-      if (isNodeHidden(node) || !matchesSelectedPersona(node)) {
+      if (isNodeHidden(node) || !matchesActiveFilters(node)) {
         node.hidden = true;
         return;
       }
       node.hidden = false;
       node.depth = depth;
 
-      // 2. Identify visible children that match both the selected Persona and are not collapsed
-      const visibleChildrenByPersona = node.children.filter(child => matchesSelectedPersona(child));
-      const hasVisibleChildren = visibleChildrenByPersona.length > 0 && !collapsedPaths.has(node.pathId);
+      // 2. Identify visible children that match the active quick filters and are not collapsed
+      const visibleChildrenByFilter = node.children.filter(child => matchesActiveFilters(child));
+      const hasVisibleChildren = visibleChildrenByFilter.length > 0 && !collapsedPaths.has(node.pathId);
 
       const dimensions = getNodeDimensions(node.type);
       node.width = dimensions.width;
@@ -1850,16 +2041,7 @@ flow: MFA Flow {id: mfa_flow}
         // If node has no visible child branches (or is collapsed), it acts as a visual leaf terminal
         node.leafIndex = tracker.count;
         tracker.count += 1;
-
-        if (orientation === 'horizontal') {
-          node.x = depth * getLayoutDepthStep() + 50;
-          node.y = tracker.cursor;
-          tracker.cursor += node.height + getLeafGap();
-        } else {
-          node.x = tracker.cursor;
-          node.y = depth * getLayoutDepthStep() + 40;
-          tracker.cursor += node.width + getLeafGap();
-        }
+        placeLeafNode(node, depth, tracker);
       } else {
         // Recursively position active child paths ONLY
         node.children.forEach(child => {
@@ -1887,15 +2069,7 @@ flow: MFA Flow {id: mfa_flow}
           // Fallback if children calculated as hidden during recursive resolution
           node.leafIndex = tracker.count;
           tracker.count += 1;
-          if (orientation === 'horizontal') {
-            node.x = depth * getLayoutDepthStep() + 50;
-            node.y = tracker.cursor;
-            tracker.cursor += node.height + getLeafGap();
-          } else {
-            node.x = tracker.cursor;
-            node.y = depth * getLayoutDepthStep() + 40;
-            tracker.cursor += node.width + getLeafGap();
-          }
+          placeLeafNode(node, depth, tracker);
         }
       }
     }
@@ -2092,7 +2266,7 @@ flow: MFA Flow {id: mfa_flow}
       let personasHtml = '';
       if (node.personas && node.personas.length > 0) {
         personasHtml = `
-          <div class="flex items-center space-x-1 text-[8px] text-indigo-500 dark:text-indigo-400 font-bold truncate max-w-[70px]" title="Access Persona: ${node.personas.join(', ')}">
+          <div class="flex items-center space-x-1 text-[8px] text-indigo-500 dark:text-indigo-400 font-bold truncate max-w-[140px]" title="Access Persona: ${node.personas.join(', ')}">
             <span class="material-symbols-outlined text-[10px] shrink-0 mr-0.5">person</span>
             <span class="truncate">${node.personas.join(', ')}</span>
           </div>
@@ -2125,7 +2299,9 @@ flow: MFA Flow {id: mfa_flow}
 
       const foreignObject = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
       foreignObject.setAttribute('width', String(node.width));
-      const extraForeignObjectHeight = isSpecialFlowNode ? 44 : 25;
+      const extraForeignObjectHeight = flagsHtml
+        ? (isSpecialFlowNode ? 58 : 32)
+        : (isSpecialFlowNode ? 44 : 25);
       foreignObject.setAttribute('height', String(node.height + extraForeignObjectHeight));
 
       // Design distinct layout profiles based on Structural nodes (Page/Group) vs Slim Leaf nodes
@@ -2169,14 +2345,15 @@ flow: MFA Flow {id: mfa_flow}
              </div>
              ${sharedIndicatorHtml ? `<div class="absolute bottom-1.5 left-2">${sharedIndicatorHtml}</div>` : ''}
             </div>
-            ${floatingCollapseBtnHtml ? `<div class="absolute bottom-1 right-2 z-30">${floatingCollapseBtnHtml}</div>` : ''}
+            ${flagsHtml ? `<div class="absolute -bottom-4 left-3 right-3">${flagsHtml}</div>` : ''}
+            ${floatingCollapseBtnHtml ? `<div class="absolute top-1/2 right-1 z-30 -translate-y-1/2">${floatingCollapseBtnHtml}</div>` : ''}
           </div>
         `;
       } else if (isStructural) {
-        // High Contrast, robust 60px height layout for Page/Group nodes
+        // High Contrast structural layout with extra room for persona metadata
         cardInnerHtml = `
           <div xmlns="http://www.w3.org/1999/xhtml" class="p-2 rounded-xl border ${spec.border} ${spec.bg} ${statusStyle} select-none shadow-sm relative group-hover:shadow-lg dark:shadow-slate-950/20 cursor-pointer" 
-              style="height: 60px; display: flex; flex-direction: column; justify-content: space-between;"
+              style="height: 76px; display: flex; flex-direction: column; justify-content: space-between;"
                onclick="handleNodeClick(event, '${node.pathId}', ${node.lineStart}, ${node.lineEnd})"
                onmouseenter="handleNodeHover('${node.id}', true)" 
                onmouseleave="handleNodeHover('${node.id}', false)">
@@ -2209,9 +2386,9 @@ flow: MFA Flow {id: mfa_flow}
           </div>
         `;
       } else {
-        // Highly compacted, slim 44px single-row style layout for Leaf nodes
+        // Compact leaf layout with room for tags and filter metadata
         cardInnerHtml = `
-          <div xmlns="http://www.w3.org/1999/xhtml" class="p-2 rounded-lg border ${spec.border} ${spec.bg} ${statusStyle} select-none shadow-sm relative group-hover:shadow-lg dark:shadow-slate-950/20 cursor-pointer animate-none" 
+          <div xmlns="http://www.w3.org/1999/xhtml" class="p-2 rounded-lg border ${spec.border} ${spec.bg} ${statusStyle} select-none shadow-sm relative group-hover:shadow-lg dark:shadow-slate-950/20 cursor-pointer animate-none overflow-visible" 
                style="height: 44px; display: flex; align-items: center;"
                onclick="handleNodeClick(event, '${node.pathId}', ${node.lineStart}, ${node.lineEnd})"
                onmouseenter="handleNodeHover('${node.id}', true)" 
@@ -2236,6 +2413,7 @@ flow: MFA Flow {id: mfa_flow}
                 ${sharedIndicatorHtml}
               </div>
             </div>
+            ${flagsHtml ? `<div class="absolute -bottom-3 left-2 right-2">${flagsHtml}</div>` : ''}
           </div>
         `;
       }
@@ -2736,6 +2914,7 @@ flow: MFA Flow {id: mfa_flow}
       clearEditor,
       loadTemplate,
       setPersonaFilter,
+      setTagFilter,
       setZoomFromMenu,
       zoomIn,
       zoomOut,
@@ -2745,7 +2924,8 @@ flow: MFA Flow {id: mfa_flow}
       exportToSVG,
       handleNodeClick,
       toggleNodeCollapse,
-      scrollToNodeId
+      scrollToNodeId,
+      focusNodeByPath
     });
   </script>
 </body>
