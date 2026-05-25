@@ -1,0 +1,60 @@
+    /* Custom scrollbars for clean code look */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .dark ::-webkit-scrollbar-thumb {
+      background: #475569;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    
+    /* Grid background pattern for SVG canvas */
+    .grid-bg-light {
+      background-image: radial-gradient(#e2e8f0 1.5px, transparent 1.5px);
+      background-size: 24px 24px;
+      background-color: #f8fafc;
+    }
+    .dark .grid-bg-dark {
+      background-image: radial-gradient(#334155 1.5px, transparent 1.5px);
+      background-size: 24px 24px;
+      background-color: #0f172a;
+    }
+    
+    /* CSS Transition for connections and hover states */
+    .node-transition {
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .connection-line {
+      transition: stroke-width 0.2s, opacity 0.2s, filter 0.2s;
+    }
+    .connection-line:hover {
+      stroke-width: 4px !important;
+      opacity: 1 !important;
+      filter: drop-shadow(0 0 4px currentColor);
+      cursor: pointer;
+    }
+
+    /* Standardized Material Symbols style override for crisp rendering */
+    .material-symbols-outlined {
+      font-size: 18px;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    
+    /* Custom slow rotation for empty state explore icon */
+    .animate-spin-slow {
+      animation: spin-slow 12s linear infinite;
+    }
+    @keyframes spin-slow {
+      100% { transform: rotate(360deg); }
+    }
