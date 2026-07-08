@@ -103,12 +103,20 @@ flow: MFA Flow {id: mfa_flow}
     let hoveredNodeId = null; // Stores shared ID of hovered element to glow connection paths
     let selectedNodePathId = null; // Store path identifier of selected card
     const collapsedPaths = new Set(); // Store hierarchy path identifiers of collapsed nodes
+    const collapsedTextLines = new Set(); // Store folded source line indices in the editor
     let selectedPersona = 'all'; // Current persona filter: 'all' or specific persona name
     let selectedTag = 'all'; // Current tag selector: 'all' or a specific node flag
     let showInspector = false; // Collapsible Right sidebar Inspector toggle state
+    let activeTopMenu = null; // Active top-bar persona/tag/glossary panel
+    let hasPersonaMenu = false;
+    let hasTagMenu = false;
+    let hasGlossaryMenu = false;
     let serviceWorkerReadyPromise = null;
     let draftSaveTimer = null;
     let isRestoringDraft = false;
+    let fullSyntaxText = '';
+    let visibleEditorLineIndices = [];
+    let editorMetricsProbe = null;
 
     // Setup color cache for shared instances
     const idColorCache = {};
@@ -121,6 +129,7 @@ flow: MFA Flow {id: mfa_flow}
     const viewport = document.getElementById('viewport');
     const canvasContainer = document.getElementById('canvas-container');
     const syntaxInput = document.getElementById('syntaxInput');
+    const lineNumbersContent = document.getElementById('lineNumbersContent');
     const errorBanner = document.getElementById('error-banner');
     const errorMessage = document.getElementById('error-message');
     const emptyState = document.getElementById('empty-state');
@@ -162,6 +171,319 @@ flow: MFA Flow {id: mfa_flow}
       } catch (error) {
         console.warn('Local draft clearing failed.', error);
       }
+    }
+
+    function isFoldableEditorLine(line) {
+      const trimmed = line.trim();
+      return Boolean(trimmed) && !trimmed.startsWith('#') && !trimmed.startsWith('//');
+    }
+
+    function isEditorMetadataLine(line) {
+      const trimmed = line.trim().toLowerCase();
+      return trimmed.startsWith('title:') || trimmed.startsWith('persona:');
+    }
+
+    function isEditorHierarchyLine(line) {
+      if (!isFoldableEditorLine(line) || isEditorMetadataLine(line)) {
+        return false;
+      }
+
+      return line.trim().includes(':');
+    }
+
+    function getEditorLineIndent(line) {
+      const indentMatch = line.match(/^(\s*)/);
+      return indentMatch ? indentMatch[1].length : 0;
+    }
+
+    function getEditorFoldRegions(lines) {
+      const foldRegions = new Map();
+      const hierarchyLines = [];
+
+      lines.forEach((line, index) => {
+        if (!isEditorHierarchyLine(line)) return;
+        hierarchyLines.push({
+          index,
+          indent: getEditorLineIndent(line)
+        });
+      });
+
+      hierarchyLines.forEach((node, hierarchyIndex) => {
+        const nextNode = hierarchyLines[hierarchyIndex + 1];
+        if (!nextNode || nextNode.indent <= node.indent) return;
+
+        let endIndex = node.index;
+        for (let cursor = node.index + 1; cursor < lines.length; cursor += 1) {
+          const cursorLine = lines[cursor];
+          if (isFoldableEditorLine(cursorLine) && getEditorLineIndent(cursorLine) <= node.indent) {
+            break;
+          }
+          endIndex = cursor;
+        }
+
+        if (endIndex > node.index) {
+          foldRegions.set(node.index, endIndex);
+        }
+      });
+
+      return foldRegions;
+    }
+
+    function translateVisibleOffsetToFullOffset(offset) {
+      const clampedOffset = Math.max(0, Math.min(Number(offset) || 0, syntaxInput?.value.length || 0));
+      const sourceLines = fullSyntaxText.split('\n');
+
+      if (visibleEditorLineIndices.length === 0) {
+        return Math.min(clampedOffset, fullSyntaxText.length);
+      }
+
+      let remainingOffset = clampedOffset;
+
+      for (let visibleIndex = 0; visibleIndex < visibleEditorLineIndices.length; visibleIndex += 1) {
+        const sourceLineIndex = visibleEditorLineIndices[visibleIndex];
+        const sourceLine = sourceLines[sourceLineIndex] ?? '';
+        const visibleLineLength = sourceLine.length;
+        const lineSpan = visibleLineLength + (visibleIndex < visibleEditorLineIndices.length - 1 ? 1 : 0);
+
+        if (remainingOffset <= lineSpan) {
+          const columnOffset = Math.min(remainingOffset, visibleLineLength);
+          let fullOffset = 0;
+          for (let sourceIndex = 0; sourceIndex < sourceLineIndex; sourceIndex += 1) {
+            fullOffset += (sourceLines[sourceIndex] ?? '').length + 1;
+          }
+          return fullOffset + columnOffset;
+        }
+
+        remainingOffset -= lineSpan;
+      }
+
+      return fullSyntaxText.length;
+    }
+
+    function getSourcePositionFromFullOffset(offset) {
+      const sourceLines = fullSyntaxText.split('\n');
+      const clampedOffset = Math.max(0, Math.min(Number(offset) || 0, fullSyntaxText.length));
+      let remainingOffset = clampedOffset;
+
+      for (let lineIndex = 0; lineIndex < sourceLines.length; lineIndex += 1) {
+        const sourceLine = sourceLines[lineIndex] ?? '';
+        if (remainingOffset <= sourceLine.length) {
+          return {
+            lineIndex,
+            columnOffset: remainingOffset
+          };
+        }
+
+        remainingOffset -= sourceLine.length;
+        if (lineIndex < sourceLines.length - 1) {
+          if (remainingOffset === 0) {
+            return {
+              lineIndex: lineIndex + 1,
+              columnOffset: 0
+            };
+          }
+          remainingOffset -= 1;
+        }
+      }
+
+      return {
+        lineIndex: Math.max(sourceLines.length - 1, 0),
+        columnOffset: (sourceLines[sourceLines.length - 1] || '').length
+      };
+    }
+
+    function getCollapsedEditorAncestorLine(lineIndex) {
+      const foldRegions = getEditorFoldRegions(fullSyntaxText.split('\n'));
+      let collapsedAncestor = null;
+
+      Array.from(collapsedTextLines).forEach((collapsedLineIndex) => {
+        const endIndex = foldRegions.get(collapsedLineIndex);
+        if (!endIndex) return;
+
+        if (lineIndex > collapsedLineIndex && lineIndex <= endIndex) {
+          if (collapsedAncestor === null || collapsedLineIndex > collapsedAncestor) {
+            collapsedAncestor = collapsedLineIndex;
+          }
+        }
+      });
+
+      return collapsedAncestor;
+    }
+
+    function translateFullOffsetToVisibleOffset(offset, options = {}) {
+      const { lineIndex, columnOffset } = getSourcePositionFromFullOffset(offset);
+      let targetLineIndex = lineIndex;
+      let targetColumnOffset = columnOffset;
+      const visibleLineIndex = visibleEditorLineIndices.indexOf(lineIndex);
+
+      if (visibleLineIndex === -1) {
+        const collapsedAncestor = getCollapsedEditorAncestorLine(lineIndex);
+        if (collapsedAncestor === null) {
+          return null;
+        }
+
+        targetLineIndex = collapsedAncestor;
+        targetColumnOffset = options.snapToCollapsedLineStart ? 0 : Math.min(columnOffset, (fullSyntaxText.split('\n')[collapsedAncestor] ?? '').length);
+      }
+
+      const resolvedVisibleLineIndex = visibleEditorLineIndices.indexOf(targetLineIndex);
+
+      if (resolvedVisibleLineIndex === -1) {
+        return null;
+      }
+
+      let visibleOffset = 0;
+      const sourceLines = fullSyntaxText.split('\n');
+      for (let i = 0; i < resolvedVisibleLineIndex; i += 1) {
+        const sourceLineIndex = visibleEditorLineIndices[i];
+        visibleOffset += (sourceLines[sourceLineIndex] ?? '').length + 1;
+      }
+
+      const visibleLineLength = (sourceLines[targetLineIndex] ?? '').length;
+      return visibleOffset + Math.min(targetColumnOffset, visibleLineLength);
+    }
+
+    function syncLineNumberScroll() {
+      if (!syntaxInput || !lineNumbersContent) return;
+      lineNumbersContent.style.transform = `translateY(-${syntaxInput.scrollTop}px)`;
+    }
+
+    function ensureEditorMetricsProbe() {
+      if (editorMetricsProbe || typeof document === 'undefined') return editorMetricsProbe;
+
+      editorMetricsProbe = document.createElement('div');
+      editorMetricsProbe.setAttribute('aria-hidden', 'true');
+      editorMetricsProbe.style.position = 'absolute';
+      editorMetricsProbe.style.visibility = 'hidden';
+      editorMetricsProbe.style.pointerEvents = 'none';
+      editorMetricsProbe.style.left = '-99999px';
+      editorMetricsProbe.style.top = '0';
+      editorMetricsProbe.style.whiteSpace = 'pre-wrap';
+      editorMetricsProbe.style.overflowWrap = 'anywhere';
+      editorMetricsProbe.style.wordBreak = 'break-word';
+      editorMetricsProbe.style.boxSizing = 'content-box';
+      editorMetricsProbe.style.padding = '0';
+      editorMetricsProbe.style.border = '0';
+      document.body.appendChild(editorMetricsProbe);
+
+      return editorMetricsProbe;
+    }
+
+    function getEditorWrappedLayout(lines = fullSyntaxText.split('\n')) {
+      if (!syntaxInput) {
+        return {
+          lineHeight: 18,
+          rowCounts: lines.map(() => 1)
+        };
+      }
+
+      const computedStyle = window.getComputedStyle(syntaxInput);
+      const lineHeight = parseFloat(computedStyle.lineHeight) || 18;
+      const contentWidth = Math.max(
+        syntaxInput.clientWidth - parseFloat(computedStyle.paddingLeft || '0') - parseFloat(computedStyle.paddingRight || '0'),
+        1
+      );
+      const probe = ensureEditorMetricsProbe();
+
+      if (!probe) {
+        return {
+          lineHeight,
+          rowCounts: lines.map(() => 1)
+        };
+      }
+
+      probe.style.width = `${contentWidth}px`;
+      probe.style.font = computedStyle.font;
+      probe.style.fontSize = computedStyle.fontSize;
+      probe.style.fontFamily = computedStyle.fontFamily;
+      probe.style.fontWeight = computedStyle.fontWeight;
+      probe.style.fontStyle = computedStyle.fontStyle;
+      probe.style.letterSpacing = computedStyle.letterSpacing;
+      probe.style.lineHeight = computedStyle.lineHeight;
+      probe.style.tabSize = computedStyle.tabSize;
+      probe.style.textTransform = computedStyle.textTransform;
+      probe.style.textIndent = computedStyle.textIndent;
+
+      const rowCounts = lines.map((line) => {
+        probe.textContent = line.length > 0 ? line : '\u00a0';
+        const measuredHeight = probe.getBoundingClientRect().height;
+        return Math.max(1, Math.ceil(measuredHeight / lineHeight));
+      });
+
+      probe.textContent = '';
+
+      return { lineHeight, rowCounts };
+    }
+
+    function getVisualRowsBeforeOffset(offset) {
+      const clampedOffset = Math.max(0, Math.min(Number(offset) || 0, fullSyntaxText.length));
+      const sourceLines = fullSyntaxText.split('\n');
+      const { lineHeight, rowCounts } = getEditorWrappedLayout(sourceLines);
+      const { lineIndex, columnOffset } = getSourcePositionFromFullOffset(clampedOffset);
+      let visualRows = 0;
+
+      for (let i = 0; i < lineIndex; i += 1) {
+        visualRows += rowCounts[i] || 1;
+      }
+
+      const currentLine = sourceLines[lineIndex] ?? '';
+      const currentLinePrefix = currentLine.slice(0, columnOffset);
+      const { rowCounts: partialRows } = getEditorWrappedLayout([currentLinePrefix.length > 0 ? currentLinePrefix : '\u00a0']);
+      visualRows += Math.max((partialRows[0] || 1) - 1, 0);
+
+      return { visualRows, lineHeight };
+    }
+
+    function renderEditorText() {
+      if (!syntaxInput || !lineNumbersContent) return;
+
+      const selectionStart = syntaxInput.selectionStart;
+      const selectionEnd = syntaxInput.selectionEnd;
+      const scrollTop = syntaxInput.scrollTop;
+      const sourceLines = fullSyntaxText.split('\n');
+      const { lineHeight, rowCounts } = getEditorWrappedLayout(sourceLines);
+      const gutterRows = [];
+
+      sourceLines.forEach((line, index) => {
+        const totalRows = rowCounts[index] || 1;
+        gutterRows.push(`
+          <div style="height:${lineHeight}px" class="pr-3 flex items-center justify-end whitespace-nowrap">
+            <span class="w-8 text-right block">${index + 1}</span>
+          </div>
+        `);
+
+        for (let rowIndex = 1; rowIndex < totalRows; rowIndex += 1) {
+          gutterRows.push(`
+            <div style="height:${lineHeight}px" class="pr-3 flex items-center justify-end whitespace-nowrap">
+              <span class="w-8 text-right block">&nbsp;</span>
+            </div>
+          `);
+        }
+      });
+
+      syntaxInput.value = fullSyntaxText;
+      visibleEditorLineIndices = sourceLines.map((_, index) => index);
+      collapsedTextLines.clear();
+      syntaxInput.readOnly = false;
+      syntaxInput.selectionStart = Math.min(selectionStart, syntaxInput.value.length);
+      syntaxInput.selectionEnd = Math.min(selectionEnd, syntaxInput.value.length);
+      syntaxInput.scrollTop = scrollTop;
+      lineNumbersContent.innerHTML = gutterRows.join('');
+      syncLineNumberScroll();
+    }
+
+    function toggleTextFold() {
+      return;
+    }
+
+    function setFullSyntaxText(text) {
+      fullSyntaxText = String(text ?? '');
+      collapsedTextLines.clear();
+      renderEditorText();
+    }
+
+    function expandAllTextFolds() {
+      return;
     }
 
     function sendServiceWorkerMessage(type, payload = {}) {
@@ -213,7 +535,7 @@ flow: MFA Flow {id: mfa_flow}
     function persistDraftNow() {
       if (isRestoringDraft) return Promise.resolve();
 
-      const currentText = syntaxInput.value;
+      const currentText = fullSyntaxText;
       if (shouldUseLocalDraftStorage()) {
         if (!currentText.trim()) {
           clearDraftFromLocalStorage();
@@ -251,7 +573,7 @@ flow: MFA Flow {id: mfa_flow}
         }
 
         isRestoringDraft = true;
-        syntaxInput.value = payload.text;
+        setFullSyntaxText(payload.text);
         isRestoringDraft = false;
         return;
       }
@@ -263,7 +585,7 @@ flow: MFA Flow {id: mfa_flow}
         }
 
         isRestoringDraft = true;
-        syntaxInput.value = payload.text;
+        setFullSyntaxText(payload.text);
       } catch (error) {
         console.warn('Draft restore failed.', error);
       } finally {
@@ -274,7 +596,7 @@ flow: MFA Flow {id: mfa_flow}
     // --- Initialization ---
     window.addEventListener('load', async () => {
       // Start completely blank/empty as requested
-      syntaxInput.value = "";
+      setFullSyntaxText("");
       
       // Auto-detect theme preference
       if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
@@ -318,11 +640,24 @@ flow: MFA Flow {id: mfa_flow}
         window.clearTimeout(draftSaveTimer);
         persistDraftNow();
       });
+      syntaxInput.addEventListener('scroll', syncLineNumberScroll);
+      window.addEventListener('resize', renderEditorText);
+      if ('ResizeObserver' in window) {
+        const editorResizeObserver = new ResizeObserver(() => {
+          renderEditorText();
+        });
+        editorResizeObserver.observe(syntaxInput);
+        const editorPanel = document.getElementById('editor-panel');
+        if (editorPanel) {
+          editorResizeObserver.observe(editorPanel);
+        }
+      }
 
       // Add custom Tab key handler to the syntax editor
       setupTabKeyHandler();
 
       await restoreDraftFromServiceWorker();
+      renderEditorText();
 
       // Run initial parse (will show empty/guide view)
       parseAndRender();
@@ -341,7 +676,7 @@ flow: MFA Flow {id: mfa_flow}
 
       const reader = new FileReader();
       reader.onload = function(e) {
-        syntaxInput.value = e.target.result;
+        setFullSyntaxText(e.target.result);
         // Clean up previous states
         selectedNodePathId = null;
         collapsedPaths.clear();
@@ -356,7 +691,7 @@ flow: MFA Flow {id: mfa_flow}
 
     // --- File Save System ---
     function saveToFile() {
-      const text = syntaxInput.value;
+      const text = fullSyntaxText;
       let filename = "untitled-diagram.txt";
       
       // Extract title if available in the text
@@ -400,6 +735,8 @@ flow: MFA Flow {id: mfa_flow}
           this.value = value.substring(0, start) + insertion + value.substring(end);
           this.selectionStart = this.selectionEnd = start + insertion.length;
 
+          fullSyntaxText = this.value;
+          renderEditorText();
           parseAndRender();
           scheduleDraftSave();
           return;
@@ -467,6 +804,8 @@ flow: MFA Flow {id: mfa_flow}
           }
 
           // Trigger rendering engine on key modification
+          fullSyntaxText = this.value;
+          renderEditorText();
           parseAndRender();
           scheduleDraftSave();
         }
@@ -501,16 +840,120 @@ flow: MFA Flow {id: mfa_flow}
       return String(value || '').trim().toLowerCase();
     }
 
-    function registerPersonaValue(rawPersona, personasMap) {
+    function createAttributeState() {
+      return {
+        id: '',
+        status: 'default',
+        flags: [],
+        personas: [],
+        comment: '',
+        description: '',
+        href: '',
+        condition: '',
+        action: '',
+        customIdSet: false,
+        hasStatusSet: false,
+        hasFlagsSet: false
+      };
+    }
+
+    function splitAttributeParts(rawAttr) {
+      const parts = [];
+      let currentPart = '';
+      let inQuotes = false;
+      let quoteChar = '';
+      let bracketDepth = 0;
+
+      for (let i = 0; i < rawAttr.length; i += 1) {
+        const char = rawAttr[i];
+        if ((char === '"' || char === "'") && (i === 0 || rawAttr[i - 1] !== '\\')) {
+          if (inQuotes && char === quoteChar) {
+            inQuotes = false;
+          } else if (!inQuotes) {
+            inQuotes = true;
+            quoteChar = char;
+          }
+        }
+        if (!inQuotes) {
+          if (char === '[') bracketDepth += 1;
+          if (char === ']') bracketDepth -= 1;
+        }
+
+        if (char === ',' && !inQuotes && bracketDepth === 0) {
+          parts.push(currentPart);
+          currentPart = '';
+        } else {
+          currentPart += char;
+        }
+      }
+
+      if (currentPart) {
+        parts.push(currentPart);
+      }
+
+      return parts;
+    }
+
+    function parseAttributes(rawAttr, personasMap, baseAttributes = createAttributeState()) {
+      const attributes = { ...baseAttributes };
+      if (!rawAttr) return attributes;
+
+      splitAttributeParts(rawAttr).forEach(part => {
+        const kv = part.split(':');
+        if (kv.length < 2) return;
+
+        const key = kv[0].trim().toLowerCase();
+        const val = kv.slice(1).join(':').trim();
+
+        if (key === 'id') {
+          attributes.id = val;
+          attributes.customIdSet = true;
+        } else if (key === 'status') {
+          attributes.status = val.toLowerCase();
+          attributes.hasStatusSet = true;
+        } else if (key === 'comment') {
+          attributes.comment = cleanAttributeValue(val);
+        } else if (key === 'description') {
+          attributes.description = cleanAttributeValue(val);
+        } else if (key === 'href') {
+          attributes.href = val.trim();
+        } else if (key === 'condition') {
+          attributes.condition = cleanAttributeValue(val);
+        } else if (key === 'action') {
+          attributes.action = cleanAttributeValue(val);
+        } else if (key === 'flags') {
+          attributes.flags = parseFlagValues(val);
+          if (attributes.flags.length > 0) {
+            attributes.hasFlagsSet = true;
+          }
+        } else if (key === 'personas' || key === 'persona') {
+          attributes.personas = parsePersonaValues(val, personasMap);
+        }
+      });
+
+      return attributes;
+    }
+
+    function registerPersonaValue(rawPersona, personasMap, description = '') {
       const personaLabel = String(rawPersona || '').trim().replace(/^['"]|['"]$/g, '').trim();
       const personaKey = normalizePersonaValue(personaLabel);
+      const cleanDescription = cleanAttributeValue(description);
 
       if (!personaKey) return '';
       if (!personasMap.has(personaKey)) {
-        personasMap.set(personaKey, personaLabel);
+        personasMap.set(personaKey, {
+          name: personaLabel,
+          description: cleanDescription
+        });
+      } else if (cleanDescription && !personasMap.get(personaKey).description) {
+        const existingPersona = personasMap.get(personaKey);
+        personasMap.set(personaKey, {
+          ...existingPersona,
+          description: cleanDescription
+        });
       }
 
-      return personasMap.get(personaKey);
+      return personasMap.get(personaKey).name;
     }
 
     function parsePersonaValues(rawValue, personasMap) {
@@ -651,10 +1094,16 @@ flow: MFA Flow {id: mfa_flow}
           return { ...base, icon: 'calendar_month' };
         case 'textarea':
           return { ...base, icon: 'notes' };
+        case 'paragraph':
+          return { ...base, icon: 'subject' };
         case 'checkbox':
           return { ...base, icon: 'check_box' };
         case 'radio':
           return { ...base, icon: 'radio_button_checked' };
+        case 'table':
+          return { ...base, icon: 'table_chart' };
+        case 'row':
+          return { ...base, icon: 'view_stream' };
         case 'decision':
           return { ...base, bg: 'bg-rose-50 dark:bg-rose-950/60', border: 'border-rose-300 dark:border-rose-800', icon: 'alt_route', labelClass: 'text-rose-800 dark:text-rose-100', typeClass: 'text-rose-600 dark:text-rose-300', clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)', borderRadius: '0', customShape: true };
         case 'branch':
@@ -676,7 +1125,7 @@ flow: MFA Flow {id: mfa_flow}
         case 'concurrent':
           return { ...base, bg: 'bg-sky-50 dark:bg-sky-950/60', border: 'border-sky-300 dark:border-sky-800', icon: 'splitscreen', labelClass: 'text-sky-900 dark:text-sky-100', typeClass: 'text-sky-700 dark:text-sky-300', borderRadius: orientation === 'horizontal' ? '9999px 0 0 9999px' : '9999px 9999px 0 0', customShape: true };
         case 'file':
-          return { ...base, bg: 'bg-slate-50 dark:bg-slate-800', border: 'border-slate-300 dark:border-slate-600', icon: 'draft', clipPath: 'polygon(0 0, 78% 0, 100% 22%, 100% 100%, 0 100%)', borderRadius: '0', customShape: true };
+          return { ...base, bg: 'bg-slate-50 dark:bg-slate-800', border: 'border-slate-300 dark:border-slate-600', icon: 'description', clipPath: 'polygon(0 0, 78% 0, 100% 22%, 100% 100%, 0 100%)', borderRadius: '0', customShape: true };
         default:
           return base;
       }
@@ -756,18 +1205,18 @@ flow: MFA Flow {id: mfa_flow}
     }
 
     function highlightAndScrollToLine(start, end) {
+      const visibleStart = translateFullOffsetToVisibleOffset(start, { snapToCollapsedLineStart: true });
+      const visibleEnd = translateFullOffsetToVisibleOffset(end);
+      if (visibleStart === null || visibleEnd === null) return;
+
       syntaxInput.focus();
-      syntaxInput.setSelectionRange(start, end);
+      syntaxInput.setSelectionRange(visibleStart, visibleEnd);
       
-      // Calculate scrolling dynamically
-      const textVal = syntaxInput.value;
-      const linesBefore = textVal.substring(0, start).split('\n').length;
-      const totalLines = textVal.split('\n').length;
-      const lineHeight = syntaxInput.scrollHeight / totalLines;
+      const { visualRows, lineHeight } = getVisualRowsBeforeOffset(visibleStart);
       
       // Scroll smoothly to position selection safely in view
       syntaxInput.scrollTo({
-        top: (linesBefore - 4) * lineHeight,
+        top: Math.max((visualRows - 4) * lineHeight, 0),
         behavior: 'smooth'
       });
     }
@@ -843,6 +1292,61 @@ flow: MFA Flow {id: mfa_flow}
         if (panel) panel.classList.add('hidden');
         if (btn) btn.classList.remove('bg-indigo-50', 'dark:bg-slate-700', 'text-brand-500');
       }
+    }
+
+    function refreshTopMenuPanels() {
+      const panelContainer = document.getElementById('top-filter-panels');
+      const menuConfig = [
+        { key: 'persona', available: hasPersonaMenu, buttonId: 'btn-toggle-persona-menu', cardId: 'persona-filter-card' },
+        { key: 'tag', available: hasTagMenu, buttonId: 'btn-toggle-tag-menu', cardId: 'tag-filter-card' },
+        { key: 'glossary', available: hasGlossaryMenu, buttonId: 'btn-toggle-glossary-menu', cardId: 'glossary-card' }
+      ];
+
+      let hasOpenPanel = false;
+
+      menuConfig.forEach(({ key, available, buttonId, cardId }) => {
+        const button = document.getElementById(buttonId);
+        const card = document.getElementById(cardId);
+        if (!button || !card) return;
+
+        if (!available) {
+          button.classList.add('hidden');
+          button.classList.remove('bg-indigo-50', 'dark:bg-slate-700', 'text-brand-500');
+          card.classList.add('hidden');
+          if (activeTopMenu === key) {
+            activeTopMenu = null;
+          }
+          return;
+        }
+
+        button.classList.remove('hidden');
+        const isActive = activeTopMenu === key;
+        if (isActive) {
+          button.classList.add('bg-indigo-50', 'dark:bg-slate-700', 'text-brand-500');
+          card.classList.remove('hidden');
+          hasOpenPanel = true;
+        } else {
+          button.classList.remove('bg-indigo-50', 'dark:bg-slate-700', 'text-brand-500');
+          card.classList.add('hidden');
+        }
+      });
+
+      if (panelContainer) {
+        panelContainer.classList.toggle('hidden', !hasOpenPanel);
+      }
+    }
+
+    function toggleTopMenu(menuKey) {
+      const menuAvailability = {
+        persona: hasPersonaMenu,
+        tag: hasTagMenu,
+        glossary: hasGlossaryMenu
+      };
+
+      if (!menuAvailability[menuKey]) return;
+
+      activeTopMenu = activeTopMenu === menuKey ? null : menuKey;
+      refreshTopMenuPanels();
     }
 
     // --- Populate and Render Right Inspector Menu ---
@@ -968,24 +1472,85 @@ flow: MFA Flow {id: mfa_flow}
       }
     }
 
+    function buildGlossaryEntries(declaredElements, declaredPersonas) {
+      const glossaryEntries = [];
+
+      Object.values(declaredElements)
+        .filter(item => item && item.type === 'element' && item.label)
+        .forEach(item => {
+          glossaryEntries.push({
+            category: 'Element',
+            name: item.label,
+            description: item.description || item.comment || ''
+          });
+        });
+
+      Array.from(declaredPersonas.values()).forEach(persona => {
+        glossaryEntries.push({
+          category: 'Persona',
+          name: persona.name,
+          description: persona.description || ''
+        });
+      });
+
+      return glossaryEntries.sort((left, right) => left.name.localeCompare(right.name));
+    }
+
+    function updateGlossaryCard(glossaryEntries) {
+      const card = document.getElementById('glossary-card');
+      const list = document.getElementById('glossary-list');
+
+      if (!card || !list) return;
+
+      if (!glossaryEntries || glossaryEntries.length === 0) {
+        hasGlossaryMenu = false;
+        card.classList.add('hidden');
+        list.innerHTML = '';
+        refreshTopMenuPanels();
+        return;
+      }
+
+      hasGlossaryMenu = true;
+      card.classList.remove('hidden');
+      list.innerHTML = glossaryEntries.map(entry => `
+        <div class="rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-3">
+          <div class="flex items-start justify-between gap-2">
+            <span class="font-semibold text-slate-800 dark:text-slate-100">${escapeHtml(entry.name)}</span>
+            <span class="shrink-0 rounded-full bg-indigo-50 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-400">${escapeHtml(entry.category)}</span>
+          </div>
+          <p class="mt-2 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">${escapeHtml(entry.description || 'No description provided.')}</p>
+        </div>
+      `).join('');
+      refreshTopMenuPanels();
+    }
+
     // --- Core Parser logic ---
     function parseAndRender() {
-      const text = syntaxInput.value;
+      const text = fullSyntaxText;
       if (!text.trim()) {
         emptyState.classList.remove('hidden');
         const personaCard = document.getElementById('persona-filter-card');
         const tagCard = document.getElementById('tag-filter-card');
+        const glossaryCard = document.getElementById('glossary-card');
         const tagResultsSummary = document.getElementById('tag-results-summary');
         const tagResultsList = document.getElementById('tag-results-list');
+        const glossaryList = document.getElementById('glossary-list');
         if (personaCard) personaCard.classList.add('hidden');
         if (tagCard) tagCard.classList.add('hidden');
+        if (glossaryCard) glossaryCard.classList.add('hidden');
+        hasPersonaMenu = false;
+        hasTagMenu = false;
+        hasGlossaryMenu = false;
+        activeTopMenu = null;
         if (tagResultsSummary) tagResultsSummary.textContent = 'Select a tag to list matching cards';
         if (tagResultsList) tagResultsList.innerHTML = '';
+        if (glossaryList) glossaryList.innerHTML = '';
         document.getElementById('tree-branches').innerHTML = '';
         document.getElementById('tree-nodes').innerHTML = '';
         document.getElementById('cross-connections').innerHTML = '';
         document.getElementById('nav-connections').innerHTML = '';
         document.getElementById('header-diagram-title').innerText = "Untitled Diagram";
+        refreshTopMenuPanels();
         return;
       }
       emptyState.classList.add('hidden');
@@ -1027,9 +1592,18 @@ flow: MFA Flow {id: mfa_flow}
 
         // Scan for declared personas
         if (cleanLine.toLowerCase().startsWith('persona:')) {
-          const personaPart = cleanLine.substring(8).trim().split('{')[0].trim();
-          if (personaPart) {
-            registerPersonaValue(personaPart, declaredPersonas);
+          const personaRest = cleanLine.substring(8).trim();
+          let personaLabel = personaRest;
+          let personaRawAttr = '';
+          const personaAttrMatch = personaRest.match(/\{([^}]+)\}$/);
+          if (personaAttrMatch) {
+            personaRawAttr = personaAttrMatch[1].trim();
+            personaLabel = personaRest.substring(0, personaRest.lastIndexOf('{')).trim();
+          }
+
+          if (personaLabel) {
+            const personaAttributes = parseAttributes(personaRawAttr, declaredPersonas);
+            registerPersonaValue(personaLabel, declaredPersonas, personaAttributes.description || personaAttributes.comment);
           }
           return;
         }
@@ -1048,81 +1622,18 @@ flow: MFA Flow {id: mfa_flow}
           label = rest.substring(0, rest.lastIndexOf('{')).trim();
         }
 
-        let customId = '';
-        let status = 'default';
-        let flags = [];
-        let nodePersonas = [];
-        let comment = '';
-        let href = '';
-        let condition = '';
-        let action = '';
-        let hasStatusSet = false;
-        let hasFlagsSet = false;
-
-        if (rawAttr) {
-          // Robust custom splitter protecting brackets and string quotes
-          const parts = [];
-          let currentPart = "";
-          let inQuotes = false;
-          let quoteChar = "";
-          let bracketDepth = 0;
-
-          for (let i = 0; i < rawAttr.length; i++) {
-            const char = rawAttr[i];
-            if ((char === '"' || char === "'") && (i === 0 || rawAttr[i-1] !== '\\')) {
-              if (inQuotes && char === quoteChar) {
-                inQuotes = false;
-              } else if (!inQuotes) {
-                inQuotes = true;
-                quoteChar = char;
-              }
-            }
-            if (!inQuotes) {
-              if (char === '[') bracketDepth++;
-              if (char === ']') bracketDepth--;
-            }
-            
-            if (char === ',' && !inQuotes && bracketDepth === 0) {
-              parts.push(currentPart);
-              currentPart = "";
-            } else {
-              currentPart += char;
-            }
-          }
-          if (currentPart) {
-            parts.push(currentPart);
-          }
-
-          parts.forEach(part => {
-            const kv = part.split(':');
-            if (kv.length >= 2) {
-              const key = kv[0].trim().toLowerCase();
-              let val = kv.slice(1).join(':').trim();
-
-              if (key === 'id') {
-                customId = val;
-              } else if (key === 'status') {
-                status = val.toLowerCase();
-                hasStatusSet = true;
-              } else if (key === 'comment') {
-                comment = cleanAttributeValue(val);
-              } else if (key === 'href') {
-                href = val.trim();
-              } else if (key === 'condition') {
-                condition = cleanAttributeValue(val);
-              } else if (key === 'action') {
-                action = cleanAttributeValue(val);
-              } else if (key === 'flags') {
-                flags = parseFlagValues(val);
-                if (flags.length > 0) {
-                  hasFlagsSet = true;
-                }
-              } else if (key === 'personas' || key === 'persona') {
-                nodePersonas = parsePersonaValues(val, declaredPersonas);
-              }
-            }
-          });
-        }
+        const attributes = parseAttributes(rawAttr, declaredPersonas);
+        const customId = attributes.customIdSet ? attributes.id : '';
+        const status = attributes.status;
+        const flags = attributes.flags;
+        const nodePersonas = attributes.personas;
+        const comment = attributes.comment;
+        const description = attributes.description || attributes.comment;
+        const href = attributes.href;
+        const condition = attributes.condition;
+        const action = attributes.action;
+        const hasStatusSet = attributes.hasStatusSet;
+        const hasFlagsSet = attributes.hasFlagsSet;
 
         // Parse priority index matching:
         // Do not overwrite previous explicit "element:" metadata labels with inline leaf overwrites
@@ -1135,6 +1646,7 @@ flow: MFA Flow {id: mfa_flow}
               status,
               flags,
               personas: nodePersonas,
+              description,
               comment,
               href,
               condition,
@@ -1150,6 +1662,7 @@ flow: MFA Flow {id: mfa_flow}
               status,
               flags,
               personas: nodePersonas,
+              description,
               comment,
               href,
               condition,
@@ -1166,6 +1679,7 @@ flow: MFA Flow {id: mfa_flow}
 
       // Update Persona Dropdown Selector Overlay
       updatePersonaDropdown(declaredPersonas);
+      updateGlossaryCard(buildGlossaryEntries(declaredElements, declaredPersonas));
 
       // SECOND PASS: Parse final visual tree hierarchies and resolve references
       lines.forEach((rawLine, index) => {
@@ -1201,85 +1715,10 @@ flow: MFA Flow {id: mfa_flow}
           label = rest.substring(0, rest.lastIndexOf('{')).trim();
         }
 
-        const attributes = {
-          id: `node-${index}`,
-          status: 'default',
-          flags: [],
-          personas: [],
-          comment: '',
-          href: '',
-          condition: '',
-          action: '',
-          customIdSet: false,
-          hasStatusSet: false,
-          hasFlagsSet: false
-        };
-
-        if (rawAttr) {
-          // Robust custom splitter protecting brackets and string quotes
-          const parts = [];
-          let currentPart = "";
-          let inQuotes = false;
-          let quoteChar = "";
-          let bracketDepth = 0;
-
-          for (let i = 0; i < rawAttr.length; i++) {
-            const char = rawAttr[i];
-            if ((char === '"' || char === "'") && (i === 0 || rawAttr[i-1] !== '\\')) {
-              if (inQuotes && char === quoteChar) {
-                inQuotes = false;
-              } else if (!inQuotes) {
-                inQuotes = true;
-                quoteChar = char;
-              }
-            }
-            if (!inQuotes) {
-              if (char === '[') bracketDepth++;
-              if (char === ']') bracketDepth--;
-            }
-            
-            if (char === ',' && !inQuotes && bracketDepth === 0) {
-              parts.push(currentPart);
-              currentPart = "";
-            } else {
-              currentPart += char;
-            }
-          }
-          if (currentPart) {
-            parts.push(currentPart);
-          }
-
-          parts.forEach(part => {
-            const kv = part.split(':');
-            if (kv.length >= 2) {
-              const key = kv[0].trim().toLowerCase();
-              let val = kv.slice(1).join(':').trim();
-
-              if (key === 'id') {
-                attributes.id = val;
-                attributes.customIdSet = true;
-              } else if (key === 'status') {
-                attributes.status = val.toLowerCase();
-                attributes.hasStatusSet = true;
-              } else if (key === 'comment') {
-                attributes.comment = cleanAttributeValue(val);
-              } else if (key === 'href') {
-                attributes.href = val.trim();
-              } else if (key === 'condition') {
-                attributes.condition = cleanAttributeValue(val);
-              } else if (key === 'action') {
-                attributes.action = cleanAttributeValue(val);
-              } else if (key === 'flags') {
-                attributes.flags = parseFlagValues(val);
-                if (attributes.flags.length > 0) {
-                  attributes.hasFlagsSet = true;
-                }
-              } else if (key === 'personas' || key === 'persona') {
-                attributes.personas = parsePersonaValues(val, declaredPersonas);
-              }
-            }
-          });
-        }
+        const attributes = parseAttributes(rawAttr, declaredPersonas, {
+          ...createAttributeState(),
+          id: `node-${index}`
+        });
 
         let resolvedType = type;
         let resolvedLabel = label;
@@ -1414,21 +1853,24 @@ flow: MFA Flow {id: mfa_flow}
       
       if (!select) return;
       if (personasMap.size === 0) {
+        hasPersonaMenu = false;
         if (card) card.classList.add('hidden');
+        refreshTopMenuPanels();
         return;
       }
       
+      hasPersonaMenu = true;
       if (card) card.classList.remove('hidden');
       const previousSelection = selectedPersona;
       
       select.innerHTML = '<option value="all">👥 Show All Personas</option>';
       Array.from(personasMap.values())
-        .sort((left, right) => left.localeCompare(right))
+        .sort((left, right) => left.name.localeCompare(right.name))
         .forEach(persona => {
         const option = document.createElement('option');
-        option.value = persona;
-        option.textContent = `👤 ${persona}`;
-        if (persona === previousSelection) {
+        option.value = persona.name;
+        option.textContent = `👤 ${persona.name}`;
+        if (persona.name === previousSelection) {
           option.selected = true;
         }
         select.appendChild(option);
@@ -1438,6 +1880,7 @@ flow: MFA Flow {id: mfa_flow}
       if (previousSelection !== 'all' && !availablePersonaKeys.has(normalizePersonaValue(previousSelection))) {
         selectedPersona = 'all';
       }
+      refreshTopMenuPanels();
     }
 
     function updateTagDropdown(nodes) {
@@ -1461,13 +1904,16 @@ flow: MFA Flow {id: mfa_flow}
       });
 
       if (availableTags.size === 0) {
+        hasTagMenu = false;
         if (card) card.classList.add('hidden');
         selectedTag = 'all';
         summary.textContent = 'Select a tag to list matching cards';
         resultsList.innerHTML = '';
+        refreshTopMenuPanels();
         return;
       }
 
+      hasTagMenu = true;
       if (card) card.classList.remove('hidden');
       const previousSelection = selectedTag;
 
@@ -1490,6 +1936,7 @@ flow: MFA Flow {id: mfa_flow}
       }
 
       updateTagResultsList(nodes);
+      refreshTopMenuPanels();
     }
 
     function updateTagResultsList(nodes) {
@@ -2217,6 +2664,8 @@ flow: MFA Flow {id: mfa_flow}
     function handleInputChange() {
       clearTimeout(typingTimer);
       typingTimer = setTimeout(() => {
+        fullSyntaxText = syntaxInput.value;
+        renderEditorText();
         parseAndRender();
         scheduleDraftSave();
       }, 250);
@@ -2224,9 +2673,10 @@ flow: MFA Flow {id: mfa_flow}
 
     // Insert structural elements on click
     function insertTemplate(type) {
+      expandAllTextFolds();
       const selectionStart = syntaxInput.selectionStart;
       const selectionEnd = syntaxInput.selectionEnd;
-      const text = syntaxInput.value;
+      const text = fullSyntaxText;
 
       let codeSnippet = '';
       switch (type) {
@@ -2262,14 +2712,14 @@ flow: MFA Flow {id: mfa_flow}
           break;
       }
 
-      syntaxInput.value = text.slice(0, selectionStart) + codeSnippet + text.slice(selectionEnd);
+      setFullSyntaxText(text.slice(0, selectionStart) + codeSnippet + text.slice(selectionEnd));
       syntaxInput.focus();
       parseAndRender();
       scheduleDraftSave();
     }
 
     function clearEditor() {
-      syntaxInput.value = '';
+      setFullSyntaxText('');
       selectedNodePathId = null;
       collapsedPaths.clear();
       selectedPersona = 'all';
@@ -2281,7 +2731,7 @@ flow: MFA Flow {id: mfa_flow}
     // loadTemplate function
     function loadTemplate(key) {
       if (templates[key]) {
-        syntaxInput.value = templates[key];
+        setFullSyntaxText(templates[key]);
         selectedNodePathId = null;
         collapsedPaths.clear();
         selectedPersona = 'all';
@@ -2440,27 +2890,111 @@ flow: MFA Flow {id: mfa_flow}
       updateZoomSelect();
     }
 
-    // --- Export as Standard SVG file ---
-    function exportToSVG() {
-      if (!viewport) return;
-      const bbox = viewport.getBBox();
-      const padding = 50;
-
-      const exportSvg = diagramSvg.cloneNode(true);
-      exportSvg.setAttribute('viewBox', `${bbox.x - padding} ${bbox.y - padding} ${bbox.width + padding * 2} ${bbox.height + padding * 2}`);
-      exportSvg.setAttribute('width', bbox.width + padding * 2);
-      exportSvg.setAttribute('height', bbox.height + padding * 2);
-
-      const serializer = new XMLSerializer();
-      const source = serializer.serializeToString(exportSvg);
-
-      const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<?xml version="1.0" standalone="no"?>\n' + source);
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
       const downloadLink = document.createElement('a');
       downloadLink.href = url;
-      downloadLink.download = `infoarch-ia-tree.svg`;
+      downloadLink.download = filename;
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
+      URL.revokeObjectURL(url);
+    }
+
+    function getWholeDiagramBounds() {
+      const visibleNodes = activeNodes.filter(node => !node.hidden && Number.isFinite(node.x) && Number.isFinite(node.y) && Number.isFinite(node.width) && Number.isFinite(node.height));
+      if (visibleNodes.length === 0) return null;
+
+      const bounds = visibleNodes.reduce((acc, node) => ({
+        minX: Math.min(acc.minX, node.x),
+        minY: Math.min(acc.minY, node.y),
+        maxX: Math.max(acc.maxX, node.x + node.width),
+        maxY: Math.max(acc.maxY, node.y + node.height)
+      }), {
+        minX: Infinity,
+        minY: Infinity,
+        maxX: -Infinity,
+        maxY: -Infinity
+      });
+
+      return {
+        minX: bounds.minX,
+        minY: bounds.minY,
+        width: bounds.maxX - bounds.minX,
+        height: bounds.maxY - bounds.minY
+      };
+    }
+
+    // --- Export whole rendered diagram as PNG ---
+    async function exportToPNG() {
+      if (!canvasContainer || !viewport || !window.htmlToImage || typeof window.htmlToImage.toBlob !== 'function') return;
+
+      const bounds = getWholeDiagramBounds();
+      if (!bounds) return;
+
+      const padding = 50;
+      const exportWidth = Math.max(1, Math.ceil(bounds.width + padding * 2));
+      const exportHeight = Math.max(1, Math.ceil(bounds.height + padding * 2));
+
+      const text = fullSyntaxText;
+      let filename = 'infoarch-diagram.png';
+      const titleMatch = text.match(/^title:\s*(.+)$/m);
+      if (titleMatch && titleMatch[1].trim()) {
+        const sanitizedTitle = titleMatch[1].trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9\s_-]/g, '')
+          .replace(/\s+/g, '-');
+        if (sanitizedTitle) {
+          filename = `${sanitizedTitle}.png`;
+        }
+      }
+
+      const originalCanvasStyles = {
+        width: canvasContainer.style.width,
+        height: canvasContainer.style.height,
+        minWidth: canvasContainer.style.minWidth,
+        minHeight: canvasContainer.style.minHeight,
+        maxWidth: canvasContainer.style.maxWidth,
+        maxHeight: canvasContainer.style.maxHeight
+      };
+      const originalTransform = viewport.getAttribute('transform') || '';
+
+      try {
+        canvasContainer.style.width = `${exportWidth}px`;
+        canvasContainer.style.height = `${exportHeight}px`;
+        canvasContainer.style.minWidth = `${exportWidth}px`;
+        canvasContainer.style.minHeight = `${exportHeight}px`;
+        canvasContainer.style.maxWidth = 'none';
+        canvasContainer.style.maxHeight = 'none';
+        viewport.setAttribute('transform', `translate(${padding - bounds.minX}, ${padding - bounds.minY}) scale(1)`);
+
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        const blob = await window.htmlToImage.toBlob(canvasContainer, {
+          cacheBust: true,
+          pixelRatio: Math.max(1, window.devicePixelRatio || 1),
+          backgroundColor: document.documentElement.classList.contains('dark') ? '#0f172a' : '#f8fafc'
+        });
+
+        if (blob) {
+          downloadBlob(blob, filename);
+        }
+      } catch (error) {
+        console.error('PNG export failed.', error);
+      } finally {
+        canvasContainer.style.width = originalCanvasStyles.width;
+        canvasContainer.style.height = originalCanvasStyles.height;
+        canvasContainer.style.minWidth = originalCanvasStyles.minWidth;
+        canvasContainer.style.minHeight = originalCanvasStyles.minHeight;
+        canvasContainer.style.maxWidth = originalCanvasStyles.maxWidth;
+        canvasContainer.style.maxHeight = originalCanvasStyles.maxHeight;
+
+        if (originalTransform) {
+          viewport.setAttribute('transform', originalTransform);
+        } else {
+          applyTransform();
+        }
+      }
     }
 
     function toggleHelpModal(show) {
@@ -2494,6 +3028,7 @@ flow: MFA Flow {id: mfa_flow}
       setOrientation,
       toggleConnections,
       toggleInspector,
+      toggleTopMenu,
       toggleTheme,
       toggleHelpModal,
       insertTemplate,
@@ -2501,13 +3036,14 @@ flow: MFA Flow {id: mfa_flow}
       loadTemplate,
       setPersonaFilter,
       setTagFilter,
+      toggleTextFold,
       setZoomFromMenu,
       zoomIn,
       zoomOut,
       focusMainCard,
       handleGlobalExpand,
       handleGlobalCollapse,
-      exportToSVG,
+      exportToPNG,
       handleNodeClick,
       toggleNodeCollapse,
       scrollToNodeId,

@@ -31,65 +31,127 @@
 <body class="h-full overflow-hidden bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-200">
   <div id="app" class="h-full flex flex-col">
     <!-- Header -->
-    <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-3 flex items-center justify-between shrink-0 shadow-sm z-10">
-      <div class="flex items-center space-x-3 overflow-hidden">
-        <div class="bg-brand-500 text-white p-2 rounded-lg flex items-center justify-center shrink-0">
-          <span class="material-symbols-outlined text-2xl" style="transform: rotate(90deg);">schema</span>
+    <header class="relative overflow-visible bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-3 shrink-0 shadow-sm z-10">
+      <div class="flex items-center justify-between gap-4">
+        <div class="flex items-center space-x-3 overflow-hidden">
+          <div class="bg-brand-500 text-white p-2 rounded-lg flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-2xl" style="transform: rotate(90deg);">schema</span>
+          </div>
+          <div class="truncate">
+            <!-- Dynamically Updated Diagram Title via 'title:' tag -->
+            <h1 id="header-diagram-title" class="text-lg font-bold tracking-tight text-slate-900 dark:text-white truncate max-w-[240px] sm:max-w-md">Untitled Diagram</h1>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Interactive Syntax-to-Tree IA Diagrammer</p>
+          </div>
         </div>
-        <div class="truncate">
-          <!-- Dynamically Updated Diagram Title via 'title:' tag -->
-          <h1 id="header-diagram-title" class="text-lg font-bold tracking-tight text-slate-900 dark:text-white truncate max-w-[240px] sm:max-w-md">Untitled Diagram</h1>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Interactive Syntax-to-Tree IA Diagrammer</p>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center space-x-2 shrink-0">
+          <!-- Load Local File Trigger -->
+          <button onclick="triggerFileInput()" class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center space-x-1.5 transition-colors animate-none" title="Load text diagram from your device">
+            <span class="material-symbols-outlined text-base">upload_file</span>
+            <span class="hidden sm:inline">Load File</span>
+          </button>
+          <input type="file" id="fileInput" accept=".txt,.ia,text/*" class="hidden" onchange="handleFileUpload(event)">
+
+          <!-- Save Local File Trigger -->
+          <button onclick="saveToFile()" class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center space-x-1.5 transition-colors" title="Save current text diagram to your device">
+            <span class="material-symbols-outlined text-base">save</span>
+            <span class="hidden sm:inline">Save File</span>
+          </button>
+
+          <!-- Layout Controls -->
+          <div class="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-lg border border-slate-200 dark:border-slate-600">
+            <button onclick="setOrientation('horizontal')" id="btn-orient-horizontal" class="px-2.5 py-1 rounded text-xs font-semibold flex items-center space-x-1 transition-all bg-white dark:bg-slate-600 shadow-sm text-brand-600 dark:text-white" title="Horizontal Tree Layout (Left-to-Right)">
+              <span class="material-symbols-outlined text-sm">keyboard_double_arrow_right</span>
+              <span class="hidden sm:inline">Horizontal</span>
+            </button>
+            <button onclick="setOrientation('vertical')" id="btn-orient-vertical" class="px-2.5 py-1 rounded text-xs font-semibold flex items-center space-x-1 transition-all text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white" title="Vertical Tree Layout (Top-to-Bottom)">
+              <span class="material-symbols-outlined text-sm">keyboard_double_arrow_down</span>
+              <span class="hidden sm:inline">Vertical</span>
+            </button>
+          </div>
+
+          <!-- Connection toggle -->
+          <button onclick="toggleConnections()" id="btn-toggle-connections" class="p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-indigo-50 dark:bg-slate-600 hover:bg-indigo-100 dark:hover:bg-slate-500 text-indigo-600 dark:text-white relative transition-colors" title="Toggle Field Instance Connecting Lines">
+            <span class="material-symbols-outlined text-base">link</span>
+            <span id="connections-active-dot" class="absolute top-1 right-1 w-2 h-2 bg-emerald-500 rounded-full"></span>
+          </button>
+
+          <!-- Top-bar quick filter toggles -->
+          <button onclick="toggleTopMenu('persona')" id="btn-toggle-persona-menu" class="hidden p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition-colors" title="Toggle Persona Filter">
+            <span class="material-symbols-outlined text-base">group</span>
+          </button>
+          <button onclick="toggleTopMenu('tag')" id="btn-toggle-tag-menu" class="hidden p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition-colors" title="Toggle Tag Filter">
+            <span class="material-symbols-outlined text-base">sell</span>
+          </button>
+          <button onclick="toggleTopMenu('glossary')" id="btn-toggle-glossary-menu" class="hidden p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition-colors" title="Toggle Glossary">
+            <span class="material-symbols-outlined text-base">menu_book</span>
+          </button>
+
+          <!-- Inspector Toggle Sidebar Button -->
+          <button onclick="toggleInspector()" id="btn-toggle-inspector" class="p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition-colors" title="Toggle Right Filter & Inspector Panel">
+            <span class="material-symbols-outlined text-base">filter_list</span>
+          </button>
+
+          <!-- Dark mode toggle -->
+          <button onclick="toggleTheme()" class="p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600" title="Toggle Theme">
+            <span id="theme-icon" class="material-symbols-outlined text-base">dark_mode</span>
+          </button>
+
+          <!-- Help Button -->
+          <button onclick="toggleHelpModal(true)" class="p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400" title="Syntax Guide">
+            <span class="material-symbols-outlined text-base">help</span>
+          </button>
         </div>
       </div>
 
-      <!-- Action Buttons -->
-      <div class="flex items-center space-x-2 shrink-0">
-        <!-- Load Local File Trigger -->
-        <button onclick="triggerFileInput()" class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center space-x-1.5 transition-colors animate-none" title="Load text diagram from your device">
-          <span class="material-symbols-outlined text-base">upload_file</span>
-          <span class="hidden sm:inline">Load File</span>
-        </button>
-        <input type="file" id="fileInput" accept=".txt,.ia,text/*" class="hidden" onchange="handleFileUpload(event)">
-
-        <!-- Save Local File Trigger -->
-        <button onclick="saveToFile()" class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center space-x-1.5 transition-colors" title="Save current text diagram to your device">
-          <span class="material-symbols-outlined text-base">save</span>
-          <span class="hidden sm:inline">Save File</span>
-        </button>
-
-        <!-- Layout Controls -->
-        <div class="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-lg border border-slate-200 dark:border-slate-600">
-          <button onclick="setOrientation('horizontal')" id="btn-orient-horizontal" class="px-2.5 py-1 rounded text-xs font-semibold flex items-center space-x-1 transition-all bg-white dark:bg-slate-600 shadow-sm text-brand-600 dark:text-white" title="Horizontal Tree Layout (Left-to-Right)">
-            <span class="material-symbols-outlined text-sm">keyboard_double_arrow_right</span>
-            <span class="hidden sm:inline">Horizontal</span>
-          </button>
-          <button onclick="setOrientation('vertical')" id="btn-orient-vertical" class="px-2.5 py-1 rounded text-xs font-semibold flex items-center space-x-1 transition-all text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white" title="Vertical Tree Layout (Top-to-Bottom)">
-            <span class="material-symbols-outlined text-sm">keyboard_double_arrow_down</span>
-            <span class="hidden sm:inline">Vertical</span>
-          </button>
+      <div id="top-filter-panels" class="hidden absolute right-6 top-full mt-3 z-30 flex justify-end pointer-events-none">
+        <div id="persona-filter-card" class="hidden w-72 max-w-[calc(100vw-3rem)] bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 text-xs transition-all duration-300 pointer-events-auto">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="font-bold text-slate-800 dark:text-white flex items-center">
+              <span class="material-symbols-outlined text-brand-500 text-sm mr-1.5">group</span>
+              Persona Filter
+            </h3>
+          </div>
+          <div class="relative">
+            <select id="personaSelect" onchange="setPersonaFilter(this.value)" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer text-slate-800 dark:text-slate-100">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
         </div>
 
-        <!-- Connection toggle -->
-        <button onclick="toggleConnections()" id="btn-toggle-connections" class="p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-indigo-50 dark:bg-slate-600 hover:bg-indigo-100 dark:hover:bg-slate-500 text-indigo-600 dark:text-white relative transition-colors" title="Toggle Field Instance Connecting Lines">
-          <span class="material-symbols-outlined text-base">link</span>
-          <span id="connections-active-dot" class="absolute top-1 right-1 w-2 h-2 bg-emerald-500 rounded-full"></span>
-        </button>
+        <div id="tag-filter-card" class="hidden w-72 max-w-[calc(100vw-3rem)] bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 text-xs transition-all duration-300 pointer-events-auto">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="font-bold text-slate-800 dark:text-white flex items-center">
+              <span class="material-symbols-outlined text-brand-500 text-sm mr-1.5">sell</span>
+              Tag Filter
+            </h3>
+          </div>
+          <div class="relative">
+            <select id="tagSelect" onchange="setTagFilter(this.value)" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer text-slate-800 dark:text-slate-100">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+          <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+            <p id="tag-results-summary" class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Select a tag to list matching cards</p>
+            <div id="tag-results-list" class="mt-2 max-h-48 overflow-y-auto space-y-1 text-xs font-sans">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
 
-        <!-- Inspector Toggle Sidebar Button -->
-        <button onclick="toggleInspector()" id="btn-toggle-inspector" class="p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition-colors" title="Toggle Right Filter & Inspector Panel">
-          <span class="material-symbols-outlined text-base">filter_list</span>
-        </button>
-
-        <!-- Dark mode toggle -->
-        <button onclick="toggleTheme()" class="p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600" title="Toggle Theme">
-          <span id="theme-icon" class="material-symbols-outlined text-base">dark_mode</span>
-        </button>
-
-        <!-- Help Button -->
-        <button onclick="toggleHelpModal(true)" class="p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400" title="Syntax Guide">
-          <span class="material-symbols-outlined text-base">help</span>
-        </button>
+        <div id="glossary-card" class="hidden w-72 max-w-[calc(100vw-3rem)] bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 text-xs transition-all duration-300 pointer-events-auto">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="font-bold text-slate-800 dark:text-white flex items-center">
+              <span class="material-symbols-outlined text-brand-500 text-sm mr-1.5">menu_book</span>
+              Glossary
+            </h3>
+          </div>
+          <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Elements and personas in alphabetical order</p>
+          <div id="glossary-list" class="mt-3 max-h-64 overflow-y-auto space-y-2 text-xs font-sans">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
       </div>
     </header>
 
@@ -97,70 +159,75 @@
     <div class="grow flex flex-col md:flex-row overflow-hidden relative">
       
       <!-- Left Panel: Text Code Editor -->
-      <div class="w-full md:w-[420px] md:min-w-[320px] md:max-w-[70vw] shrink-0 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col h-1/3 md:h-full z-10 font-sans md:resize-x md:overflow-auto">
+      <div id="editor-panel" class="w-full md:w-[420px] md:min-w-[320px] md:max-w-[70vw] shrink-0 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col h-1/3 md:h-full z-10 font-sans md:resize-x md:overflow-auto">
         <!-- Editor Header -->
         <div class="px-4 py-2 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between shrink-0">
           <span class="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase flex items-center">
             <span class="material-symbols-outlined text-sm mr-1.5 text-brand-500">code</span> Diagram Syntax
           </span>
-          <div class="flex items-center space-x-1">
-            <span id="parsing-badge" class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 flex items-center">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1 animate-pulse"></span> Sync Active
-            </span>
-          </div>
+          <span id="parsing-badge" class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 flex items-center">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1 animate-pulse"></span> Sync Active
+          </span>
         </div>
 
-        <!-- Real Code Area -->
-        <div class="grow flex flex-col relative font-mono text-xs overflow-hidden">
-          <!-- Textarea for input -->
-          <textarea id="syntaxInput" placeholder="# Type here or choose a snippet below..." spellcheck="false" class="w-full grow min-h-[220px] p-4 bg-slate-900 text-slate-100 border-none focus:outline-none focus:ring-0 resize-none font-mono leading-relaxed text-[11px]" oninput="handleInputChange()"></textarea>
-          
-          <!-- Sync Error Banner if any -->
-          <div id="error-banner" class="hidden absolute bottom-0 left-0 right-0 bg-rose-500 text-white p-3 text-xs flex items-start space-x-2 shadow-lg transition-all duration-200">
-            <span class="material-symbols-outlined text-base shrink-0 mt-0.5">warning</span>
-            <div>
-              <p class="font-bold">Syntax Hint</p>
-              <p id="error-message" class="text-rose-100"></p>
+        <div id="editor-content" class="grow flex flex-col min-h-0">
+          <!-- Real Code Area -->
+          <div class="grow flex flex-col relative font-mono text-xs overflow-hidden">
+            <div class="grow min-h-0 flex overflow-hidden bg-slate-900">
+              <div class="w-16 shrink-0 border-r border-slate-800 bg-slate-950/80 text-slate-500 text-[11px] leading-relaxed select-none overflow-hidden">
+                <div id="lineNumbersContent" class="py-4"></div>
+              </div>
+              <!-- Textarea for input -->
+              <textarea id="syntaxInput" placeholder="# Type here or choose a snippet below..." spellcheck="false" class="w-full grow min-h-[220px] overflow-auto p-4 bg-slate-900 text-slate-100 border-none focus:outline-none focus:ring-0 resize-y font-mono leading-relaxed text-[11px]" oninput="handleInputChange()"></textarea>
+            </div>
+            
+            <!-- Sync Error Banner if any -->
+            <div id="error-banner" class="hidden absolute bottom-0 left-0 right-0 bg-rose-500 text-white p-3 text-xs flex items-start space-x-2 shadow-lg transition-all duration-200">
+              <span class="material-symbols-outlined text-base shrink-0 mt-0.5">warning</span>
+              <div>
+                <p class="font-bold">Syntax Hint</p>
+                <p id="error-message" class="text-rose-100"></p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Editor Toolbar Helper -->
-        <div class="p-3 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 flex flex-wrap gap-1.5 shrink-0">
-          <button onclick="insertTemplate('title')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center" title="Define the main map title header">
-            <span class="w-2 h-2 rounded bg-indigo-400 mr-1"></span> +Title Tag
-          </button>
-          <button onclick="insertTemplate('persona')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center" title="Declare a system persona profile">
-            <span class="w-2 h-2 rounded bg-pink-400 mr-1"></span> +Persona Tag
-          </button>
-          <button onclick="insertTemplate('element')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center" title="Define a generic shared component">
-            <span class="w-2 h-2 rounded bg-slate-400 mr-1"></span> +Decl element
-          </button>
-          <button onclick="insertTemplate('page')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center">
-            <span class="w-2 h-2 rounded bg-indigo-500 mr-1"></span> +Page
-          </button>
-          <button onclick="insertTemplate('group')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center">
-            <span class="w-2 h-2 rounded bg-amber-500 mr-1"></span> +Group
-          </button>
-          <button onclick="insertTemplate('field')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center">
-            <span class="w-2 h-2 rounded bg-sky-500 mr-1"></span> +Field
-          </button>
-          <button onclick="insertTemplate('button')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center">
-            <span class="w-2 h-2 rounded bg-purple-500 mr-1"></span> +Button
-          </button>
-          <button onclick="insertTemplate('decision')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center" title="Insert a VisVocab decision point">
-            <span class="w-2 h-2 rotate-45 bg-rose-400 mr-1"></span> +Decision
-          </button>
-          <button onclick="insertTemplate('branch')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center" title="Insert a conditional branch">
-            <span class="w-0 h-0 border-l-[5px] border-r-[5px] border-b-[8px] border-l-transparent border-r-transparent border-b-amber-400 mr-1"></span> +Branch
-          </button>
-          <button onclick="insertTemplate('reference')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center" title="Insert a reusable flow reference">
-            <span class="w-2 h-2 bg-violet-400 mr-1" style="clip-path: polygon(10% 0%, 90% 0%, 100% 24%, 100% 76%, 90% 100%, 10% 100%, 0% 76%, 0% 24%);"></span> +Flow Ref
-          </button>
-          <span class="grow"></span>
-          <button onclick="clearEditor()" class="px-2 py-1 bg-rose-50 dark:bg-rose-950/30 text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded text-[10px] font-semibold" title="Clear Editor">
-            Clear
-          </button>
+          <!-- Editor Toolbar Helper -->
+          <div class="p-3 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 flex flex-wrap gap-1.5 shrink-0">
+            <button onclick="insertTemplate('title')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center" title="Define the main map title header">
+              <span class="w-2 h-2 rounded bg-indigo-400 mr-1"></span> +Title Tag
+            </button>
+            <button onclick="insertTemplate('persona')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center" title="Declare a system persona profile">
+              <span class="w-2 h-2 rounded bg-pink-400 mr-1"></span> +Persona Tag
+            </button>
+            <button onclick="insertTemplate('element')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center" title="Define a generic shared component">
+              <span class="w-2 h-2 rounded bg-slate-400 mr-1"></span> +Decl element
+            </button>
+            <button onclick="insertTemplate('page')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center">
+              <span class="w-2 h-2 rounded bg-indigo-500 mr-1"></span> +Page
+            </button>
+            <button onclick="insertTemplate('group')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center">
+              <span class="w-2 h-2 rounded bg-amber-500 mr-1"></span> +Group
+            </button>
+            <button onclick="insertTemplate('field')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center">
+              <span class="w-2 h-2 rounded bg-sky-500 mr-1"></span> +Field
+            </button>
+            <button onclick="insertTemplate('button')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center">
+              <span class="w-2 h-2 rounded bg-purple-500 mr-1"></span> +Button
+            </button>
+            <button onclick="insertTemplate('decision')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center" title="Insert a VisVocab decision point">
+              <span class="w-2 h-2 rotate-45 bg-rose-400 mr-1"></span> +Decision
+            </button>
+            <button onclick="insertTemplate('branch')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center" title="Insert a conditional branch">
+              <span class="w-0 h-0 border-l-[5px] border-r-[5px] border-b-[8px] border-l-transparent border-r-transparent border-b-amber-400 mr-1"></span> +Branch
+            </button>
+            <button onclick="insertTemplate('reference')" class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-semibold flex items-center" title="Insert a reusable flow reference">
+              <span class="w-2 h-2 bg-violet-400 mr-1" style="clip-path: polygon(10% 0%, 90% 0%, 100% 24%, 100% 76%, 90% 100%, 10% 100%, 0% 76%, 0% 24%);"></span> +Flow Ref
+            </button>
+            <span class="grow"></span>
+            <button onclick="clearEditor()" class="px-2 py-1 bg-rose-50 dark:bg-rose-950/30 text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded text-[10px] font-semibold" title="Clear Editor">
+              Clear
+            </button>
+          </div>
         </div>
       </div>
 
@@ -332,41 +399,6 @@
           </div>
         </div>
 
-        <!-- Floating quick filters -->
-        <div id="persona-filter-card" class="hidden absolute top-4 right-4 z-20 bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 text-xs w-64 backdrop-blur-sm pointer-events-auto transition-all duration-300 hover:shadow-xl">
-          <div class="flex items-center justify-between mb-2">
-            <h3 class="font-bold text-slate-800 dark:text-white flex items-center">
-              <span class="material-symbols-outlined text-brand-500 text-sm mr-1.5">group</span>
-              Persona Filter
-            </h3>
-          </div>
-          <div class="relative">
-            <select id="personaSelect" onchange="setPersonaFilter(this.value)" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer text-slate-800 dark:text-slate-100">
-              <!-- Dynamically populated -->
-            </select>
-          </div>
-        </div>
-
-        <div id="tag-filter-card" class="hidden absolute top-[5.5rem] right-4 z-20 bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 text-xs w-64 backdrop-blur-sm pointer-events-auto transition-all duration-300 hover:shadow-xl">
-          <div class="flex items-center justify-between mb-2">
-            <h3 class="font-bold text-slate-800 dark:text-white flex items-center">
-              <span class="material-symbols-outlined text-brand-500 text-sm mr-1.5">sell</span>
-              Tag Filter
-            </h3>
-          </div>
-          <div class="relative">
-            <select id="tagSelect" onchange="setTagFilter(this.value)" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer text-slate-800 dark:text-slate-100">
-              <!-- Dynamically populated -->
-            </select>
-          </div>
-          <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
-            <p id="tag-results-summary" class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Select a tag to list matching cards</p>
-            <div id="tag-results-list" class="mt-2 max-h-48 overflow-y-auto space-y-1 text-xs font-sans">
-              <!-- Dynamically populated -->
-            </div>
-          </div>
-        </div>
-
         <!-- Fully Restored Overlay Action Panel (Floating Canvas Controls) -->
         <div class="absolute bottom-4 right-4 z-20 flex items-center space-x-1.5 bg-white dark:bg-slate-800 p-1.5 shadow-lg border border-slate-200 dark:border-slate-700 rounded-xl backdrop-blur-sm">
           <button onclick="zoomOut()" class="p-2 rounded-lg bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition-colors flex items-center justify-center" title="Zoom Out">
@@ -410,9 +442,9 @@
           
           <div class="w-[1px] h-6 bg-slate-200 dark:bg-slate-600 mx-1"></div>
 
-          <button onclick="exportToSVG()" class="px-2.5 py-1.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold flex items-center space-x-1 transition-colors" title="Download SVG Diagram">
+          <button onclick="exportToPNG()" class="px-2.5 py-1.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold flex items-center space-x-1 transition-colors" title="Download PNG of whole diagram">
             <span class="material-symbols-outlined text-sm">download</span>
-            <span>Export SVG</span>
+            <span>Export PNG</span>
           </button>
         </div>
 
@@ -477,13 +509,17 @@ page: Homepage
               <span class="bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300 w-5 h-5 rounded-full inline-flex items-center justify-center text-xs mr-2 font-bold">4</span>
               Advanced Element Reusability, Navigation Links & Comments
             </h4>
-            <p class="text-xs mb-2">InfoArch supports powerful model declarations. You can easily specify comments (help tooltips) and navigation pointer paths using `href`:</p>
+            <p class="text-xs mb-2">InfoArch supports powerful model declarations. You can specify comments (help tooltips), glossary descriptions, and navigation pointer paths using `href`:</p>
             <ul class="list-disc pl-5 text-xs space-y-1.5 mb-3">
               <li><strong>Navigation Links (`href`):</strong> Use ID tags to represent navigation pointers between distinct areas of your IA diagram:
                 <pre class="bg-slate-950 text-slate-100 p-2 rounded-lg text-[11px] mt-1">button: Proceed to Pay {id: proceed_btn, href: payment_view}</pre>
               </li>
               <li><strong>Explanatory Help tooltips (`comment`):</strong> Write descriptive guides on nodes using quotes:
                 <pre class="bg-slate-950 text-slate-100 p-2.5 rounded-lg text-[11px] mt-1">input: Promo Code {id: discount, comment: "Applies 10% coupon codes"}</pre>
+              </li>
+              <li><strong>Glossary descriptions (`description`):</strong> Add descriptions to declared personas and elements so they appear in the floating glossary:
+                <pre class="bg-slate-950 text-slate-100 p-2.5 rounded-lg text-[11px] mt-1">element: Promo Code {id: discount, description: "Reusable coupon input"}
+persona: Customer {description: "Shops and completes checkout"}</pre>
               </li>
             </ul>
           </div>
@@ -522,6 +558,7 @@ flow: MFA Flow {id: mfa_flow}
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>
