@@ -3008,6 +3008,57 @@ flow: MFA Flow {id: mfa_flow}
       }
     }
 
+    function toggleDonateModal(show) {
+      const modal = document.getElementById('donateModal');
+      if (modal) {
+        if (show) {
+          modal.classList.remove('hidden');
+        } else {
+          modal.classList.add('hidden');
+          const feedback = document.getElementById('donate-copy-feedback');
+          if (feedback) feedback.classList.add('hidden');
+        }
+      }
+    }
+
+    function copyDonateAddress() {
+      const addressEl = document.getElementById('donate-address');
+      if (!addressEl) return;
+      const address = addressEl.textContent.trim();
+      const feedback = document.getElementById('donate-copy-feedback');
+      const copyIcon = document.getElementById('donate-copy-icon');
+
+      const showCopied = () => {
+        if (feedback) feedback.classList.remove('hidden');
+        if (copyIcon) {
+          copyIcon.textContent = 'check';
+          setTimeout(() => { copyIcon.textContent = 'content_copy'; }, 2000);
+        }
+      };
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(address).then(showCopied).catch(() => fallbackCopy(address, showCopied));
+      } else {
+        fallbackCopy(address, showCopied);
+      }
+    }
+
+    function fallbackCopy(text, onSuccess) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        if (onSuccess) onSuccess();
+      } catch (err) {
+        /* clipboard unavailable */
+      }
+      document.body.removeChild(textarea);
+    }
+
     function toggleTheme() {
       const html = document.documentElement;
       const themeIcon = document.getElementById('theme-icon');
@@ -3031,6 +3082,8 @@ flow: MFA Flow {id: mfa_flow}
       toggleTopMenu,
       toggleTheme,
       toggleHelpModal,
+      toggleDonateModal,
+      copyDonateAddress,
       insertTemplate,
       clearEditor,
       loadTemplate,

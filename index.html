@@ -3,7 +3,81 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>InfoArch - Free Information Architecture Diagram Builder</title>
+  <title>InfoArch — Free Information Architecture Diagram Builder</title>
+
+  <!-- Primary SEO meta -->
+  <meta name="description" content="InfoArch is a free, browser-based information architecture diagram builder. Turn simple indented text syntax into interactive IA sitemaps, user-flow trees, and UX decision diagrams — with personas, tag filters, navigation links, and PNG export. No sign-up, runs entirely in your browser.">
+  <meta name="keywords" content="information architecture, IA diagram, information architecture tool, sitemap builder, UX flow diagram, user flow tool, decision flow diagram, text to diagram, diagram as code, IA sitemap generator, free diagramming tool, tree diagram builder, wireflow, UX design tool">
+  <meta name="author" content="InfoArch">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#6366f1">
+  <meta name="application-name" content="InfoArch">
+  <link rel="canonical" href="https://infoarchdiagram.org/">
+
+  <!-- Open Graph (Facebook, LinkedIn, Slack, Discord, etc.) -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="InfoArch">
+  <meta property="og:title" content="InfoArch — Free Information Architecture Diagram Builder">
+  <meta property="og:description" content="Turn simple indented text into interactive information architecture diagrams, UX flows, and decision trees. Personas, tag filters, navigation links, and PNG export — free and in-browser.">
+  <meta property="og:url" content="https://infoarchdiagram.org/">
+  <meta property="og:image" content="https://infoarchdiagram.org/image.jpg">
+  <meta property="og:image:secure_url" content="https://infoarchdiagram.org/image.jpg">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="1024">
+  <meta property="og:image:height" content="541">
+  <meta property="og:image:alt" content="InfoArch — a tool for modeling UX information architecture diagrams, showing multiple interactive tree and flow diagrams.">
+  <meta property="og:locale" content="en_US">
+
+  <!-- Twitter / X Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="InfoArch — Free Information Architecture Diagram Builder">
+  <meta name="twitter:description" content="Turn simple indented text into interactive information architecture diagrams, UX flows, and decision trees. Free and in-browser — no sign-up.">
+  <meta name="twitter:image" content="https://infoarchdiagram.org/image.jpg">
+  <meta name="twitter:image:alt" content="InfoArch — a tool for modeling UX information architecture diagrams.">
+
+  <!-- Favicon (matches the header schema logo) -->
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="mask-icon" href="./favicon.svg" color="#6366f1">
+  <link rel="apple-touch-icon" href="./favicon.svg">
+
+  <!-- Structured data for search engines, LLMs, and reading agents -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "InfoArch",
+    "alternateName": "InfoArch Diagram Builder",
+    "url": "https://infoarchdiagram.org/",
+    "description": "A free, browser-based information architecture diagram builder that converts simple indented text syntax into interactive IA sitemaps, UX user-flow trees, and decision-flow diagrams. Supports personas, tag and status filters, navigation links, a glossary, and PNG export. Runs entirely client-side with no sign-up.",
+    "applicationCategory": "DesignApplication",
+    "applicationSubCategory": "Information Architecture & Diagramming",
+    "operatingSystem": "Any (web browser)",
+    "browserRequirements": "Requires JavaScript. Runs in any modern web browser.",
+    "image": "https://infoarchdiagram.org/image.jpg",
+    "screenshot": "https://infoarchdiagram.org/image.jpg",
+    "inLanguage": "en",
+    "isAccessibleForFree": true,
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "featureList": [
+      "Text-to-diagram syntax (diagram as code)",
+      "Interactive information architecture trees and sitemaps",
+      "UX user flows and conditional decision diagrams",
+      "User personas with role-based filtering",
+      "Tag, status, and flag filters",
+      "Navigation links (href) between cards",
+      "Glossary of elements and personas",
+      "Horizontal and vertical tree layouts",
+      "PNG export",
+      "Light and dark mode",
+      "Runs fully in-browser with local file load/save"
+    ]
+  }
+  </script>
+
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google Material Symbols Outlined -->
@@ -101,6 +175,12 @@
           <!-- Help Button -->
           <button onclick="toggleHelpModal(true)" class="p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400" title="Syntax Guide">
             <span class="material-symbols-outlined text-base">help</span>
+          </button>
+
+          <!-- Donate Button -->
+          <button onclick="toggleDonateModal(true)" class="px-3 py-1.5 rounded-lg border border-amber-200 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-300 text-xs font-semibold flex items-center space-x-1.5 transition-colors" title="Support this project with a Bitcoin donation">
+            <span class="material-symbols-outlined text-base">favorite</span>
+            <span class="hidden sm:inline">Donate</span>
           </button>
         </div>
       </div>
@@ -552,6 +632,47 @@ flow: MFA Flow {id: mfa_flow}
         <div class="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end">
           <button onclick="toggleHelpModal(false)" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all font-sans">
             Got it, Let's Design!
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Donate Modal -->
+    <div id="donateModal" class="hidden fixed inset-0 z-50 overflow-auto bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4" onclick="if (event.target === this) toggleDonateModal(false)">
+      <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in duration-200 font-sans">
+        <!-- Modal Header -->
+        <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
+          <div class="flex items-center space-x-2">
+            <span class="material-symbols-outlined text-amber-500 text-lg mr-1">favorite</span>
+            <h3 class="text-md font-bold text-slate-900 dark:text-white font-sans">Support InfoArch</h3>
+          </div>
+          <button onclick="toggleDonateModal(false)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors flex items-center">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6 space-y-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+          <p class="text-xs">InfoArch is free and open. If it's useful to you, consider supporting its development with a Bitcoin donation. Thank you! 🙏</p>
+
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5 flex items-center">
+              <span class="material-symbols-outlined text-sm mr-1 text-amber-500">currency_bitcoin</span> Bitcoin Address
+            </p>
+            <div class="flex items-stretch gap-2">
+              <code id="donate-address" class="grow bg-slate-950 text-slate-100 p-3 rounded-lg text-[11px] leading-5 break-all font-mono select-all">bc1qjldu5t8udj2sr6tdugmg0tc5ur77njteqqjm6y</code>
+              <button onclick="copyDonateAddress()" id="donate-copy-btn" class="shrink-0 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold flex items-center justify-center transition-colors" title="Copy address to clipboard">
+                <span id="donate-copy-icon" class="material-symbols-outlined text-base">content_copy</span>
+              </button>
+            </div>
+            <p id="donate-copy-feedback" class="hidden text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mt-1.5">Address copied to clipboard!</p>
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+          <button onclick="toggleDonateModal(false)" class="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold transition-all font-sans">
+            Close
           </button>
         </div>
       </div>
