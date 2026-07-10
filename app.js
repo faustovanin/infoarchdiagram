@@ -87,7 +87,22 @@ flow: MFA Flow {id: mfa_flow}
   entry: One-time code
   decision: Code accepted?
     exit: Resume sign in {condition: "verified"}
-    page: Retry MFA {condition: "failed"}`
+    page: Retry MFA {condition: "failed"}`,
+      selectorcluster: `title: Selector & Cluster (VisVocab)
+
+page: Account plan
+  branch: Choose tier
+    page: Free tier {condition: "free"}
+    cluster: Premium bundle {condition: "premium"}
+      page: Advanced Dashboard
+      page: Priority Support
+      page: Custom Reports
+
+page: Search
+  selector: Search results
+    page: Products {condition: "matches query"}
+    page: Articles {condition: "matches query"}
+    page: People {condition: "matches query"}`
     };
 
     // --- State Variables ---
@@ -106,6 +121,8 @@ flow: MFA Flow {id: mfa_flow}
     const collapsedTextLines = new Set(); // Store folded source line indices in the editor
     let selectedPersona = 'all'; // Current persona filter: 'all' or specific persona name
     let selectedTag = 'all'; // Current tag selector: 'all' or a specific node flag
+    let currentErrorMessage = null; // Active parse error message (null when valid)
+    let currentErrorLineIndex = null; // 0-based source line the active error points at
     let showInspector = false; // Collapsible Right sidebar Inspector toggle state
     let activeTopMenu = null; // Active top-bar persona/tag/glossary panel
     let hasPersonaMenu = false;
@@ -130,8 +147,6 @@ flow: MFA Flow {id: mfa_flow}
     const canvasContainer = document.getElementById('canvas-container');
     const syntaxInput = document.getElementById('syntaxInput');
     const lineNumbersContent = document.getElementById('lineNumbersContent');
-    const errorBanner = document.getElementById('error-banner');
-    const errorMessage = document.getElementById('error-message');
     const emptyState = document.getElementById('empty-state');
     const btnOrientHorizontal = document.getElementById('btn-orient-horizontal');
     const btnOrientVertical = document.getElementById('btn-orient-vertical');
@@ -446,11 +461,20 @@ flow: MFA Flow {id: mfa_flow}
 
       sourceLines.forEach((line, index) => {
         const totalRows = rowCounts[index] || 1;
-        gutterRows.push(`
-          <div style="height:${lineHeight}px" class="pr-3 flex items-center justify-end whitespace-nowrap">
-            <span class="w-8 text-right block">${index + 1}</span>
-          </div>
-        `);
+        if (index === currentErrorLineIndex) {
+          gutterRows.push(`
+            <div style="height:${lineHeight}px" class="pr-2 flex items-center justify-end gap-1 whitespace-nowrap">
+              <button type="button" onclick="openErrorPopover(event)" title="${escapeHtml(currentErrorMessage || '')}" class="material-symbols-outlined text-[14px] text-rose-500 hover:text-rose-400 cursor-pointer leading-none animate-pulse">error</button>
+              <span class="w-6 text-right block text-rose-400 font-bold">${index + 1}</span>
+            </div>
+          `);
+        } else {
+          gutterRows.push(`
+            <div style="height:${lineHeight}px" class="pr-3 flex items-center justify-end whitespace-nowrap">
+              <span class="w-8 text-right block">${index + 1}</span>
+            </div>
+          `);
+        }
 
         for (let rowIndex = 1; rowIndex < totalRows; rowIndex += 1) {
           gutterRows.push(`
@@ -642,6 +666,14 @@ flow: MFA Flow {id: mfa_flow}
       });
       syntaxInput.addEventListener('scroll', syncLineNumberScroll);
       window.addEventListener('resize', renderEditorText);
+      // Dismiss the error popover on any click outside it (except the gutter icon that opens it).
+      document.addEventListener('mousedown', (e) => {
+        const popover = document.getElementById('error-popover');
+        if (!popover || popover.classList.contains('hidden')) return;
+        if (popover.contains(e.target)) return;
+        if (e.target.closest && e.target.closest('button[onclick^="openErrorPopover"]')) return;
+        closeErrorPopover();
+      });
       if ('ResizeObserver' in window) {
         const editorResizeObserver = new ResizeObserver(() => {
           renderEditorText();
@@ -1049,7 +1081,31 @@ flow: MFA Flow {id: mfa_flow}
     }
 
     function isConditionalConnector(parentNode, childNode) {
+      // VisVocab cluster ("one decision, many paths"): the condition is evaluated on the
+      // edge INTO the cluster; the edges OUT of it lead to paths that are all presented
+      // together, so those outgoing connectors are solid/non-conditional — unless the child
+      // is itself a conditional element (e.g. a nested branch/selector).
+      if (parentNode.type === 'cluster') {
+        return isConditionalNodeType(childNode.type);
+      }
       return Boolean(childNode.condition) || isConditionalNodeType(parentNode.type) || isConditionalNodeType(childNode.type);
+    }
+
+    // VisVocab choice semantics shown as a small pill at a node's output:
+    //   branch   -> exactly one downstream path is presented ("1 of")
+    //   selector -> one OR MORE downstream paths may be presented ("1+ of")
+    //   cluster  -> all downstream paths are presented together ("all of")
+    function getChoiceBadgeSpec(type) {
+      switch (type) {
+        case 'branch':
+          return { text: '1 of', pill: 'fill-rose-100 dark:fill-rose-950 stroke-rose-300 dark:stroke-rose-800', label: 'fill-rose-700 dark:fill-rose-200' };
+        case 'selector':
+          return { text: '1+ of', pill: 'fill-cyan-100 dark:fill-cyan-950 stroke-cyan-300 dark:stroke-cyan-800', label: 'fill-cyan-700 dark:fill-cyan-200' };
+        case 'cluster':
+          return { text: 'all of', pill: 'fill-fuchsia-100 dark:fill-fuchsia-950 stroke-fuchsia-300 dark:stroke-fuchsia-800', label: 'fill-fuchsia-700 dark:fill-fuchsia-200' };
+        default:
+          return null;
+      }
     }
 
     function shouldRenderArrowHead(parentNode, childNode) {
@@ -1311,7 +1367,7 @@ flow: MFA Flow {id: mfa_flow}
 
         if (!available) {
           button.classList.add('hidden');
-          button.classList.remove('bg-indigo-50', 'dark:bg-slate-700', 'text-brand-500');
+          button.classList.remove('bg-indigo-50', 'dark:bg-slate-600', 'text-brand-500');
           card.classList.add('hidden');
           if (activeTopMenu === key) {
             activeTopMenu = null;
@@ -1322,11 +1378,11 @@ flow: MFA Flow {id: mfa_flow}
         button.classList.remove('hidden');
         const isActive = activeTopMenu === key;
         if (isActive) {
-          button.classList.add('bg-indigo-50', 'dark:bg-slate-700', 'text-brand-500');
+          button.classList.add('bg-indigo-50', 'dark:bg-slate-600', 'text-brand-500');
           card.classList.remove('hidden');
           hasOpenPanel = true;
         } else {
-          button.classList.remove('bg-indigo-50', 'dark:bg-slate-700', 'text-brand-500');
+          button.classList.remove('bg-indigo-50', 'dark:bg-slate-600', 'text-brand-500');
           card.classList.add('hidden');
         }
       });
@@ -2103,6 +2159,12 @@ flow: MFA Flow {id: mfa_flow}
     function drawBranches(node, svgGroup) {
       if (node.hidden || collapsedPaths.has(node.pathId)) return;
 
+      // Draw the VisVocab choice-semantics badge at the output of branch/selector/cluster nodes.
+      const choiceBadge = getChoiceBadgeSpec(node.type);
+      if (choiceBadge && node.children.some(c => !c.hidden)) {
+        drawChoiceBadge(node, choiceBadge, svgGroup);
+      }
+
       node.children.forEach(child => {
         if (child.hidden) return;
         
@@ -2137,8 +2199,22 @@ flow: MFA Flow {id: mfa_flow}
         path.setAttribute('d', pathData);
         const conditionalConnector = isConditionalConnector(node, child);
         const navigationConnector = isFlowNavigationNodeType(node.type) || isFlowNavigationNodeType(child.type);
-        path.setAttribute('class', `${navigationConnector ? 'stroke-indigo-300 dark:stroke-indigo-600' : 'stroke-slate-300 dark:stroke-slate-600'} fill-none transition-all`);
-        path.setAttribute('stroke-width', conditionalConnector ? '2' : '1.5');
+        // Non-exclusive selector paths (dashed cyan) vs. "presented together" cluster paths (solid fuchsia).
+        const selectorOutgoing = node.type === 'selector';
+        const clusterOutgoing = node.type === 'cluster' && !isConditionalNodeType(child.type);
+
+        let strokeClass;
+        if (clusterOutgoing) {
+          strokeClass = 'stroke-fuchsia-400 dark:stroke-fuchsia-600';
+        } else if (selectorOutgoing) {
+          strokeClass = 'stroke-cyan-400 dark:stroke-cyan-600';
+        } else if (navigationConnector) {
+          strokeClass = 'stroke-indigo-300 dark:stroke-indigo-600';
+        } else {
+          strokeClass = 'stroke-slate-300 dark:stroke-slate-600';
+        }
+        path.setAttribute('class', `${strokeClass} fill-none transition-all`);
+        path.setAttribute('stroke-width', (conditionalConnector || clusterOutgoing) ? '2' : '1.5');
         if (conditionalConnector) {
           path.setAttribute('stroke-dasharray', '6,4');
         }
@@ -2159,7 +2235,20 @@ flow: MFA Flow {id: mfa_flow}
           text.setAttribute('dominant-baseline', 'middle');
           text.setAttribute('font-size', '10');
           text.setAttribute('font-weight', '700');
-          text.setAttribute('class', child.condition ? 'fill-rose-600 dark:fill-rose-300' : 'fill-sky-600 dark:fill-sky-300');
+          // Selector paths are non-exclusive -> tint their condition pills cyan to distinguish
+          // from a branch's mutually-exclusive (rose) paths.
+          let textClass, rectClass;
+          if (selectorOutgoing && child.condition) {
+            textClass = 'fill-cyan-700 dark:fill-cyan-300';
+            rectClass = 'fill-cyan-50 dark:fill-cyan-950/90 stroke-cyan-200 dark:stroke-cyan-800';
+          } else if (child.condition) {
+            textClass = 'fill-rose-600 dark:fill-rose-300';
+            rectClass = 'fill-rose-50 dark:fill-rose-950/90 stroke-rose-200 dark:stroke-rose-800';
+          } else {
+            textClass = 'fill-sky-600 dark:fill-sky-300';
+            rectClass = 'fill-sky-50 dark:fill-sky-950/90 stroke-sky-200 dark:stroke-sky-800';
+          }
+          text.setAttribute('class', textClass);
           text.textContent = connectorLabel;
 
           const estimatedWidth = Math.max(44, connectorLabel.length * 6.5 + 12);
@@ -2169,7 +2258,7 @@ flow: MFA Flow {id: mfa_flow}
           rect.setAttribute('width', String(estimatedWidth));
           rect.setAttribute('height', '18');
           rect.setAttribute('rx', '9');
-          rect.setAttribute('class', child.condition ? 'fill-rose-50 dark:fill-rose-950/90 stroke-rose-200 dark:stroke-rose-800' : 'fill-sky-50 dark:fill-sky-950/90 stroke-sky-200 dark:stroke-sky-800');
+          rect.setAttribute('class', rectClass);
 
           labelGroup.appendChild(rect);
           labelGroup.appendChild(text);
@@ -2178,6 +2267,47 @@ flow: MFA Flow {id: mfa_flow}
 
         drawBranches(child, svgGroup);
       });
+    }
+
+    // Small pill rendered at the output of a branch/selector/cluster node describing how many
+    // of its downstream paths are presented (VisVocab choice semantics).
+    function drawChoiceBadge(node, spec, svgGroup) {
+      let cx, cy;
+      if (orientation === 'horizontal') {
+        cx = node.x + node.width + 4;
+        cy = node.y + (node.height / 2) - 15;
+      } else {
+        cx = node.x + node.width / 2 + 18;
+        cy = node.y + node.height + 4;
+      }
+
+      const badgeWidth = Math.max(30, spec.text.length * 6 + 14);
+      const badgeHeight = 15;
+
+      const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('x', String(cx));
+      rect.setAttribute('y', String(cy - badgeHeight / 2));
+      rect.setAttribute('width', String(badgeWidth));
+      rect.setAttribute('height', String(badgeHeight));
+      rect.setAttribute('rx', '7.5');
+      rect.setAttribute('class', `${spec.pill} transition-all`);
+
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', String(cx + badgeWidth / 2));
+      text.setAttribute('y', String(cy + 0.5));
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('dominant-baseline', 'middle');
+      text.setAttribute('font-size', '9');
+      text.setAttribute('font-weight', '700');
+      text.setAttribute('letter-spacing', '0.02em');
+      text.setAttribute('class', spec.label);
+      text.textContent = spec.text;
+
+      group.appendChild(rect);
+      group.appendChild(text);
+      svgGroup.appendChild(group);
     }
 
     // Toggle Collapse of parent node
@@ -2806,8 +2936,18 @@ flow: MFA Flow {id: mfa_flow}
     }
 
     function showError(msg) {
-      if (errorMessage) errorMessage.innerText = msg;
-      if (errorBanner) errorBanner.classList.remove('hidden');
+      const match = /^Line (\d+):/.exec(msg);
+      const newLineIndex = match ? parseInt(match[1], 10) - 1 : null;
+      const lineChanged = newLineIndex !== currentErrorLineIndex;
+      currentErrorMessage = msg;
+      currentErrorLineIndex = newLineIndex;
+
+      // Keep an already-open popover's text in sync with the latest error.
+      const msgEl = document.getElementById('error-message');
+      if (msgEl) msgEl.innerText = msg;
+      // Refresh the gutter marker only when the flagged line actually moves.
+      if (lineChanged) renderEditorText();
+
       const badge = document.getElementById('parsing-badge');
       if (badge) {
         badge.className = "px-2 py-0.5 rounded-full text-[10px] font-medium bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 flex items-center";
@@ -2816,12 +2956,50 @@ flow: MFA Flow {id: mfa_flow}
     }
 
     function hideError() {
-      if (errorBanner) errorBanner.classList.add('hidden');
+      const hadError = currentErrorMessage !== null || currentErrorLineIndex !== null;
+      currentErrorMessage = null;
+      currentErrorLineIndex = null;
+      closeErrorPopover();
+      if (hadError) renderEditorText();
+
       const badge = document.getElementById('parsing-badge');
       if (badge) {
         badge.className = "px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 flex items-center";
         badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1 animate-pulse"></span> Sync Active`;
       }
+    }
+
+    // Open the syntax-hint popover anchored next to the clicked gutter error icon.
+    function openErrorPopover(e) {
+      if (e) e.stopPropagation();
+      const popover = document.getElementById('error-popover');
+      if (!popover || !currentErrorMessage) return;
+
+      const msgEl = document.getElementById('error-message');
+      if (msgEl) msgEl.innerText = currentErrorMessage;
+
+      popover.classList.remove('hidden');
+
+      const iconEl = e && e.currentTarget ? e.currentTarget : null;
+      if (iconEl) {
+        const iconRect = iconEl.getBoundingClientRect();
+        const popRect = popover.getBoundingClientRect();
+        let left = iconRect.right + 8;
+        let top = iconRect.top - 4;
+        if (left + popRect.width > window.innerWidth - 8) {
+          left = Math.max(8, iconRect.left - popRect.width - 8);
+        }
+        if (top + popRect.height > window.innerHeight - 8) {
+          top = Math.max(8, window.innerHeight - popRect.height - 8);
+        }
+        popover.style.left = `${left}px`;
+        popover.style.top = `${top}px`;
+      }
+    }
+
+    function closeErrorPopover() {
+      const popover = document.getElementById('error-popover');
+      if (popover) popover.classList.add('hidden');
     }
 
     // --- Infinite Canvas Zoom & Pan Management ---
@@ -3084,6 +3262,8 @@ flow: MFA Flow {id: mfa_flow}
       toggleHelpModal,
       toggleDonateModal,
       copyDonateAddress,
+      openErrorPopover,
+      closeErrorPopover,
       insertTemplate,
       clearEditor,
       loadTemplate,

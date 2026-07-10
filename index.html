@@ -261,12 +261,17 @@
               <textarea id="syntaxInput" placeholder="# Type here or choose a snippet below..." spellcheck="false" class="w-full grow min-h-[220px] overflow-auto p-4 bg-slate-900 text-slate-100 border-none focus:outline-none focus:ring-0 resize-y font-mono leading-relaxed text-[11px]" oninput="handleInputChange()"></textarea>
             </div>
             
-            <!-- Sync Error Banner if any -->
-            <div id="error-banner" class="hidden absolute bottom-0 left-0 right-0 bg-rose-500 text-white p-3 text-xs flex items-start space-x-2 shadow-lg transition-all duration-200">
-              <span class="material-symbols-outlined text-base shrink-0 mt-0.5">warning</span>
-              <div>
-                <p class="font-bold">Syntax Hint</p>
-                <p id="error-message" class="text-rose-100"></p>
+            <!-- Sync Error Popover (opened by clicking the inline error icon in the gutter) -->
+            <div id="error-popover" class="hidden fixed z-50 w-72 max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-900 rounded-xl shadow-2xl p-3.5 text-xs">
+              <div class="flex items-start gap-2">
+                <span class="material-symbols-outlined text-rose-500 text-base shrink-0 mt-0.5">error</span>
+                <div class="grow">
+                  <p class="font-bold text-slate-800 dark:text-white">Syntax Hint</p>
+                  <p id="error-message" class="text-slate-600 dark:text-slate-300 mt-0.5 break-words"></p>
+                </div>
+                <button onclick="closeErrorPopover()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white shrink-0 flex items-center" title="Dismiss">
+                  <span class="material-symbols-outlined text-base">close</span>
+                </button>
               </div>
             </div>
           </div>
@@ -415,7 +420,7 @@
                 <!-- Quick Demos / Templates -->
                 <div class="pt-2 border-t border-slate-100 dark:border-slate-700 font-sans">
                   <p class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2.5">Click to Load a Kickstart Template</p>
-                  <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                     <button onclick="loadTemplate('ecom')" class="p-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-950/80 border border-indigo-100 dark:border-indigo-900/50 rounded-xl text-left transition-colors">
                       <div class="font-bold text-xs text-indigo-700 dark:text-indigo-300">🛒 Checkout Flow</div>
                       <div class="text-[10px] text-indigo-600/70 dark:text-indigo-400/70 mt-0.5">Payment steps & persona filters</div>
@@ -431,6 +436,10 @@
                     <button onclick="loadTemplate('conditional')" class="p-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-950/80 border border-rose-100 dark:border-rose-900/50 rounded-xl text-left transition-colors">
                       <div class="font-bold text-xs text-rose-700 dark:text-rose-300">🔀 Conditional Flow</div>
                       <div class="text-[10px] text-rose-600/70 dark:text-rose-400/70 mt-0.5">Decision points, selectors & reusable flows</div>
+                    </button>
+                    <button onclick="loadTemplate('selectorcluster')" class="p-2 bg-fuchsia-50 hover:bg-fuchsia-100 dark:bg-fuchsia-950/40 dark:hover:bg-fuchsia-950/80 border border-fuchsia-100 dark:border-fuchsia-900/50 rounded-xl text-left transition-colors">
+                      <div class="font-bold text-xs text-fuchsia-700 dark:text-fuchsia-300">🔢 Selector &amp; Cluster</div>
+                      <div class="text-[10px] text-fuchsia-600/70 dark:text-fuchsia-400/70 mt-0.5">One-or-more paths &amp; grouped sets</div>
                     </button>
                   </div>
                 </div>
@@ -624,7 +633,92 @@ flow: MFA Flow {id: mfa_flow}
     page: SMS Verify {condition: "sms enabled"}
     page: Email Verify {condition: "email enabled"}
             </pre>
-            <p class="text-xs mt-2">Available flow keywords: <code class="text-indigo-500 font-semibold font-mono">decision</code>, <code class="text-indigo-500 font-semibold font-mono">branch</code>, <code class="text-indigo-500 font-semibold font-mono">selector</code>, <code class="text-indigo-500 font-semibold font-mono">cluster</code>, <code class="text-indigo-500 font-semibold font-mono">flow</code>, <code class="text-indigo-500 font-semibold font-mono">reference</code>, <code class="text-indigo-500 font-semibold font-mono">continue</code>, <code class="text-indigo-500 font-semibold font-mono">entry</code>, <code class="text-indigo-500 font-semibold font-mono">exit</code>, <code class="text-indigo-500 font-semibold font-mono">concurrent</code>, and <code class="text-indigo-500 font-semibold font-mono">file</code>.</p>
+            <p class="text-xs mt-3 mb-2 font-bold text-slate-700 dark:text-slate-200">Flow keyword reference — an example of each option</p>
+            <div class="space-y-1 text-xs">
+              <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
+                <code class="shrink-0 sm:w-24 font-mono font-bold text-rose-600 dark:text-rose-300">decision</code>
+                <span class="grow text-slate-600 dark:text-slate-300">Diamond. After an action, the system picks one result.</span>
+                <code class="shrink-0 font-mono text-[11px] text-slate-100 bg-slate-950 px-2 py-0.5 rounded">decision: Credentials valid?</code>
+              </div>
+              <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
+                <code class="shrink-0 sm:w-24 font-mono font-bold text-amber-600 dark:text-amber-300">branch</code>
+                <span class="grow text-slate-600 dark:text-slate-300">Triangle. Exactly one path is presented (mutually exclusive).</span>
+                <code class="shrink-0 font-mono text-[11px] text-slate-100 bg-slate-950 px-2 py-0.5 rounded">branch: Recovery route {condition: "no"}</code>
+              </div>
+              <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
+                <code class="shrink-0 sm:w-24 font-mono font-bold text-cyan-600 dark:text-cyan-300">selector</code>
+                <span class="grow text-slate-600 dark:text-slate-300">Trapezoid. One <strong>or more</strong> matching paths are presented.</span>
+                <code class="shrink-0 font-mono text-[11px] text-slate-100 bg-slate-950 px-2 py-0.5 rounded">selector: Search results</code>
+              </div>
+              <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
+                <code class="shrink-0 sm:w-24 font-mono font-bold text-fuchsia-600 dark:text-fuchsia-300">cluster</code>
+                <span class="grow text-slate-600 dark:text-slate-300">Circle. One condition presents all its children together.</span>
+                <code class="shrink-0 font-mono text-[11px] text-slate-100 bg-slate-950 px-2 py-0.5 rounded">cluster: Premium bundle {condition: "premium"}</code>
+              </div>
+              <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
+                <code class="shrink-0 sm:w-24 font-mono font-bold text-indigo-600 dark:text-indigo-300">flow</code>
+                <span class="grow text-slate-600 dark:text-slate-300">Reusable sequence container (like a subroutine). Give it an <code class="font-mono">id</code>.</span>
+                <code class="shrink-0 font-mono text-[11px] text-slate-100 bg-slate-950 px-2 py-0.5 rounded">flow: MFA Flow {id: mfa_flow}</code>
+              </div>
+              <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
+                <code class="shrink-0 sm:w-24 font-mono font-bold text-violet-600 dark:text-violet-300">reference</code>
+                <span class="grow text-slate-600 dark:text-slate-300">Placeholder that reuses a flow via <code class="font-mono">href</code>.</span>
+                <code class="shrink-0 font-mono text-[11px] text-slate-100 bg-slate-950 px-2 py-0.5 rounded">reference: MFA Flow {href: mfa_flow}</code>
+              </div>
+              <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
+                <code class="shrink-0 sm:w-24 font-mono font-bold text-emerald-600 dark:text-emerald-300">entry</code>
+                <span class="grow text-slate-600 dark:text-slate-300">Entry point where a flow begins.</span>
+                <code class="shrink-0 font-mono text-[11px] text-slate-100 bg-slate-950 px-2 py-0.5 rounded">entry: One-time code</code>
+              </div>
+              <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
+                <code class="shrink-0 sm:w-24 font-mono font-bold text-orange-600 dark:text-orange-300">exit</code>
+                <span class="grow text-slate-600 dark:text-slate-300">Exit point where a flow hands control back.</span>
+                <code class="shrink-0 font-mono text-[11px] text-slate-100 bg-slate-950 px-2 py-0.5 rounded">exit: Resume sign in {condition: "verified"}</code>
+              </div>
+              <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
+                <code class="shrink-0 sm:w-24 font-mono font-bold text-slate-600 dark:text-slate-300">continue</code>
+                <span class="grow text-slate-600 dark:text-slate-300">Continuation point bridging to another area or diagram.</span>
+                <code class="shrink-0 font-mono text-[11px] text-slate-100 bg-slate-950 px-2 py-0.5 rounded">continue: Contact Support {condition: "locked"}</code>
+              </div>
+              <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
+                <code class="shrink-0 sm:w-24 font-mono font-bold text-sky-600 dark:text-sky-300">concurrent</code>
+                <span class="grow text-slate-600 dark:text-slate-300">Half-circle. One action generates several simultaneous results.</span>
+                <code class="shrink-0 font-mono text-[11px] text-slate-100 bg-slate-950 px-2 py-0.5 rounded">concurrent: Notify &amp; redirect</code>
+              </div>
+              <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
+                <code class="shrink-0 sm:w-24 font-mono font-bold text-slate-600 dark:text-slate-300">file</code>
+                <span class="grow text-slate-600 dark:text-slate-300">Dog-eared document. A non-navigational file (PDF, export, log).</span>
+                <code class="shrink-0 font-mono text-[11px] text-slate-100 bg-slate-950 px-2 py-0.5 rounded">file: Audit Log {action: "write event"}</code>
+              </div>
+            </div>
+
+            <div class="mt-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 p-3">
+              <p class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-2">Choice semantics — how many downstream paths are presented</p>
+              <ul class="text-xs space-y-2">
+                <li class="flex items-start gap-2">
+                  <span class="shrink-0 mt-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-200 border border-rose-300 dark:border-rose-800">1 of</span>
+                  <span class="text-slate-600 dark:text-slate-300"><code class="text-indigo-500 font-semibold font-mono">branch</code> — mutually exclusive. Exactly <strong>one</strong> of its paths is presented (dashed rose connectors).</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="shrink-0 mt-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-200 border border-cyan-300 dark:border-cyan-800">1+ of</span>
+                  <span class="text-slate-600 dark:text-slate-300"><code class="text-indigo-500 font-semibold font-mono">selector</code> — non-exclusive. <strong>One or more</strong> paths that meet the condition are presented (dashed cyan connectors). Ideal for search results.</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="shrink-0 mt-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-950 dark:text-fuchsia-200 border border-fuchsia-300 dark:border-fuchsia-800">all of</span>
+                  <span class="text-slate-600 dark:text-slate-300"><code class="text-indigo-500 font-semibold font-mono">cluster</code> — one decision, many paths. Put the <code class="text-indigo-500 font-semibold font-mono">condition</code> on the cluster itself; <strong>all</strong> its children are then presented <strong>together</strong> (solid fuchsia connectors). Place a cluster downstream of a branch or selector.</span>
+                </li>
+              </ul>
+              <pre class="bg-slate-950 text-slate-100 p-3 rounded-lg text-[11px] leading-5 mt-3">branch: Account plan
+  page: Free tier {condition: "free"}
+  cluster: Premium bundle {condition: "premium"}
+    page: Advanced Dashboard
+    page: Priority Support
+
+selector: Search results
+  page: Products {condition: "matches query"}
+  page: Articles {condition: "matches query"}
+  page: People {condition: "matches query"}</pre>
+            </div>
           </div>
         </div>
 
