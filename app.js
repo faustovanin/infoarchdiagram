@@ -3030,14 +3030,22 @@ page: Search
     function handleWheel(e) {
       e.preventDefault();
       if (e.ctrlKey || e.metaKey) {
-        // Zoom behavior with modifier key
+        // Zoom behavior with modifier key (trackpad pinch fires wheel with ctrlKey).
         const zoomFactor = 1.1;
-        if (e.deltaY < 0) {
-          zoomLevel *= zoomFactor;
-        } else {
-          zoomLevel /= zoomFactor;
+        const oldZoom = zoomLevel;
+        let newZoom = e.deltaY < 0 ? oldZoom * zoomFactor : oldZoom / zoomFactor;
+        newZoom = Math.max(0.15, Math.min(3.0, newZoom));
+
+        if (newZoom !== oldZoom) {
+          // Anchor the zoom on the pointer: keep the world point under the cursor fixed.
+          const rect = canvasContainer.getBoundingClientRect();
+          const pointerX = e.clientX - rect.left;
+          const pointerY = e.clientY - rect.top;
+          const ratio = newZoom / oldZoom;
+          panX = pointerX - (pointerX - panX) * ratio;
+          panY = pointerY - (pointerY - panY) * ratio;
+          zoomLevel = newZoom;
         }
-        zoomLevel = Math.max(0.15, Math.min(3.0, zoomLevel));
       } else {
         // Natural viewport panning / scrolling
         panX -= e.deltaX;
